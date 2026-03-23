@@ -36,10 +36,9 @@ export function useTreeData(currentView: string) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<'canvas' | 'timeline'>('canvas');
   const [currentTreeId, setCurrentTreeId] = useState<number | null>(null);
-  const [userEmail] = useState<string>('demo@familytree.com');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveTreeToDatabase = useCallback(async () => {
@@ -89,6 +88,7 @@ export function useTreeData(currentView: string) {
     const savedNodes = localStorage.getItem('familyTree_nodes');
     const savedEdges = localStorage.getItem('familyTree_edges');
     const savedTreeId = localStorage.getItem('familyTree_treeId');
+    const userData = localStorage.getItem('user_data');
     
     if (savedNodes) {
       try {
@@ -107,6 +107,14 @@ export function useTreeData(currentView: string) {
     if (savedTreeId) {
       setCurrentTreeId(parseInt(savedTreeId));
     }
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        if (parsed.email) setUserEmail(parsed.email);
+      } catch (_) {
+        // ignore
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -119,10 +127,8 @@ export function useTreeData(currentView: string) {
       }
     }, 900000);
     
-    setAutoSaveTimer(timer);
-    
     return () => {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
     };
   }, [nodes, edges, currentView, saveTreeToDatabase]);
 
@@ -309,7 +315,7 @@ export function useTreeData(currentView: string) {
     setSelectedId(null);
   };
 
-  const updateSelectedNode = (field: keyof FamilyNode, value: any) =>
+  const updateSelectedNode = (field: keyof FamilyNode, value: FamilyNode[keyof FamilyNode]) =>
     setNodes(nodes.map((n) => (n.id === selectedId ? { ...n, [field]: value } : n)));
 
   const handleExport = () => {
