@@ -24,6 +24,7 @@ interface AnalyticsData {
 export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
     activeToday: 0,
@@ -59,22 +60,27 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   }, []);
 
   const loadAnalytics = async () => {
+    setAnalyticsError(false);
     try {
       const response = await fetch('https://functions.poehali.dev/d917b670-852b-45d7-a273-26bf2e464999');
       
       if (!response.ok) {
-        console.error('Failed to load analytics:', response.statusText);
+        setAnalyticsError(true);
         return;
       }
       
       const data = await response.json();
       
-      // Подсчитываем метрики из целей Метрики
+      if (data.error) {
+        setAnalyticsError(true);
+        return;
+      }
+      
       const goals = data.goals || {};
       
       setAnalytics({
         totalUsers: data.users || 0,
-        activeToday: Math.round((data.users || 0) * 0.15), // ~15% активных
+        activeToday: Math.round((data.users || 0) * 0.15),
         treesSaved: goals['tree_first_save'] || 0,
         personsAdded: goals['person_added'] || 0,
         plansSelected: {
@@ -85,7 +91,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         },
       });
     } catch (error) {
-      console.error('Error loading analytics:', error);
+      setAnalyticsError(true);
     }
   };
 
@@ -199,6 +205,20 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           </Card>
         </div>
 
+        {/* Баннер ошибки аналитики */}
+        {analyticsError && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
+            <Icon name="AlertTriangle" size={20} className="text-amber-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800">Не удалось загрузить данные аналитики</p>
+              <p className="text-sm text-amber-700">Проверьте токен Яндекс.Метрики в настройках секретов. Данные ниже могут быть неактуальны.</p>
+            </div>
+            <Button variant="outline" size="sm" className="ml-auto shrink-0" onClick={refreshMetrics}>
+              Повторить
+            </Button>
+          </div>
+        )}
+
         {/* Конверсия по тарифам */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="p-6">
@@ -207,57 +227,50 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               <Icon name="TrendingUp" size={20} className="text-primary" />
             </div>
             <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Старт (бесплатно)</span>
-                  <span className="text-sm font-semibold">{analytics.plansSelected.start}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${(analytics.plansSelected.start / analytics.totalUsers) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Премиум месяц</span>
-                  <span className="text-sm font-semibold">{analytics.plansSelected.premium_month}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-purple-500 h-2 rounded-full"
-                    style={{ width: `${(analytics.plansSelected.premium_month / analytics.totalUsers) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Премиум полгода</span>
-                  <span className="text-sm font-semibold">{analytics.plansSelected.premium_half}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full"
-                    style={{ width: `${(analytics.plansSelected.premium_half / analytics.totalUsers) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-muted-foreground">Премиум год</span>
-                  <span className="text-sm font-semibold">{analytics.plansSelected.premium_year}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-amber-500 h-2 rounded-full"
-                    style={{ width: `${(analytics.plansSelected.premium_year / analytics.totalUsers) * 100}%` }}
-                  />
-                </div>
-              </div>
+              {(() => {
+                const total = analytics.plansSelected.start + analytics.plansSelected.premium_month + analytics.plansSelected.premium_half + analytics.plansSelected.premium_year;
+                const pct = (val: number) => total > 0 ? Math.round((val / total) * 100) : 0;
+                return (
+                  <>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">Старт (бесплатно)</span>
+                        <span className="text-sm font-semibold">{analytics.plansSelected.start}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.start)}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">Премиум месяц</span>
+                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_month}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_month)}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">Премиум полгода</span>
+                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_half}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_half)}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-muted-foreground">Премиум год</span>
+                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_year}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_year)}%` }} />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </Card>
 
