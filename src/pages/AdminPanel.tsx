@@ -208,58 +208,26 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           </div>
         )}
 
-        {/* Конверсия по тарифам */}
+        {/* Статистика за 7 дней */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Выбор тарифов</h3>
+              <h3 className="text-lg font-bold">За последние 7 дней</h3>
               <Icon name="TrendingUp" size={20} className="text-primary" />
             </div>
             <div className="space-y-4">
-              {(() => {
-                const total = analytics.plansSelected.start + analytics.plansSelected.premium_month + analytics.plansSelected.premium_half + analytics.plansSelected.premium_year;
-                const pct = (val: number) => total > 0 ? Math.round((val / total) * 100) : 0;
-                return (
-                  <>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-muted-foreground">Старт (бесплатно)</span>
-                        <span className="text-sm font-semibold">{analytics.plansSelected.start}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.start)}%` }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-muted-foreground">Премиум месяц</span>
-                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_month}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_month)}%` }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-muted-foreground">Премиум полгода</span>
-                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_half}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_half)}%` }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-muted-foreground">Премиум год</span>
-                        <span className="text-sm font-semibold">{analytics.plansSelected.premium_year}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${pct(analytics.plansSelected.premium_year)}%` }} />
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <span className="text-sm text-muted-foreground">Новых пользователей</span>
+                <span className="text-sm font-bold text-blue-600">+{analytics.newUsers7d}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <span className="text-sm text-muted-foreground">Новых деревьев</span>
+                <span className="text-sm font-bold text-purple-600">+{analytics.trees7d}</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-muted-foreground">Новых персон</span>
+                <span className="text-sm font-bold text-amber-600">+{analytics.persons7d}</span>
+              </div>
             </div>
           </Card>
 
