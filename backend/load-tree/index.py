@@ -76,7 +76,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
     
     cursor.execute(
-        """SELECT id, first_name, last_name, middle_name, maiden_name, gender, 
+        """SELECT id, frontend_node_id, first_name, last_name, middle_name, maiden_name, gender, 
         birth_date, birth_place, death_date, death_place, is_alive, occupation, 
         bio, history_context, position_x, position_y
         FROM "t_p57451291_family_tree_builder_".persons
@@ -87,9 +87,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     persons = cursor.fetchall()
     
     cursor.execute(
-        """SELECT id, source_person_id, target_person_id, relationship_type
-        FROM "t_p57451291_family_tree_builder_".relationships
-        WHERE tree_id = %s""",
+        """SELECT r.id, r.relationship_type,
+        p_src.frontend_node_id as source_node_id,
+        p_tgt.frontend_node_id as target_node_id
+        FROM "t_p57451291_family_tree_builder_".relationships r
+        JOIN "t_p57451291_family_tree_builder_".persons p_src ON r.source_person_id = p_src.id
+        JOIN "t_p57451291_family_tree_builder_".persons p_tgt ON r.target_person_id = p_tgt.id
+        WHERE r.tree_id = %s""",
         (tree_id,)
     )
     relationships = cursor.fetchall()
@@ -99,8 +103,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     nodes = []
     for person in persons:
+        node_id = person['frontend_node_id'] or str(person['id'])
         nodes.append({
-            'id': str(person['id']),
+            'id': node_id,
             'x': float(person['position_x']) if person['position_x'] else 0,
             'y': float(person['position_y']) if person['position_y'] else 0,
             'firstName': person['first_name'] or '',
@@ -121,11 +126,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     edges = []
     for rel in relationships:
+        if not rel['source_node_id'] or not rel['target_node_id']:
+            continue
         edge_type = 'spouse' if rel['relationship_type'] == 'spouse' else None
         edges.append({
             'id': f"e-{rel['id']}",
-            'source': str(rel['source_person_id']),
-            'target': str(rel['target_person_id']),
+            'source': rel['source_node_id'],
+            'target': rel['target_node_id'],
             **(({'type': edge_type}) if edge_type else {})
         })
     

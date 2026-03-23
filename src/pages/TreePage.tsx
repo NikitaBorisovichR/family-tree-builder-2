@@ -41,12 +41,12 @@ export default function TreePage() {
     selectedId,
     mode,
     isSaving,
+    isLoading,
     showSuccessToast,
     selectedNode,
     parents,
     fileInputRef,
     setNodes,
-    setEdges,
     setSelectedId,
     setMode,
     addRelative,
@@ -69,6 +69,17 @@ export default function TreePage() {
   } = useCanvasInteraction();
 
   useKeyboardShortcuts(selectedId, setSelectedId, saveTreeToDatabase, () => navigate('/dashboard'), deleteNode);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Icon name="Loader2" size={48} className="animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground text-lg">Загружаем ваше древо...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full bg-background flex flex-col relative">

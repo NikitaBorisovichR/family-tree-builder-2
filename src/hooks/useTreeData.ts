@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FamilyNode, Edge } from '@/components/TreeCanvas';
 import { sendGoal, Goals } from '@/utils/analytics';
+import func2url from '../../backend/func2url.json';
 
 const INITIAL_NODES: FamilyNode[] = [
   {
@@ -25,9 +26,9 @@ const INITIAL_NODES: FamilyNode[] = [
 ];
 
 const API_URLS = {
-  saveTree: 'https://functions.poehali.dev/aeece77d-47a7-4370-aaaf-cd7f3f0c85a3',
-  loadTree: 'https://functions.poehali.dev/b34d5849-b70f-4939-be6a-ca52bbbf3b71',
-  listTrees: 'https://functions.poehali.dev/37b2ca54-22fb-4d55-a1eb-6415bea1e80f'
+  saveTree: func2url['save-tree'],
+  loadTree: func2url['load-tree'],
+  listTrees: func2url['list-trees']
 };
 
 export function useTreeData(currentView: string) {
@@ -38,6 +39,7 @@ export function useTreeData(currentView: string) {
   const [currentTreeId, setCurrentTreeId] = useState<number | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,36 +87,72 @@ export function useTreeData(currentView: string) {
   }, [currentTreeId, userEmail, nodes, edges]);
 
   useEffect(() => {
-    const savedNodes = localStorage.getItem('familyTree_nodes');
-    const savedEdges = localStorage.getItem('familyTree_edges');
-    const savedTreeId = localStorage.getItem('familyTree_treeId');
-    const userData = localStorage.getItem('user_data');
-    
-    if (savedNodes) {
-      try {
-        setNodes(JSON.parse(savedNodes));
-      } catch (e) {
-        console.error('Error loading nodes', e);
+    const init = async () => {
+      const savedTreeId = localStorage.getItem('familyTree_treeId');
+      const userData = localStorage.getItem('user_data');
+
+      let email = '';
+      if (userData) {
+        try {
+          const parsed = JSON.parse(userData);
+          if (parsed.email) {
+            email = parsed.email;
+            setUserEmail(parsed.email);
+          }
+        } catch (_) {
+          // ignore
+        }
       }
-    }
-    if (savedEdges) {
-      try {
-        setEdges(JSON.parse(savedEdges));
-      } catch (e) {
-        console.error('Error loading edges', e);
+
+      // Загружаем с сервера если есть email и treeId
+      if (email && savedTreeId && API_URLS.loadTree) {
+        try {
+          const response = await fetch(
+            `${API_URLS.loadTree}?tree_id=${savedTreeId}&user_email=${encodeURIComponent(email)}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.nodes && data.nodes.length > 0) {
+              setNodes(data.nodes);
+              setEdges(data.edges || []);
+              setCurrentTreeId(data.tree_id);
+              localStorage.setItem('familyTree_nodes', JSON.stringify(data.nodes));
+              localStorage.setItem('familyTree_edges', JSON.stringify(data.edges || []));
+              localStorage.setItem('familyTree_treeId', String(data.tree_id));
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Error loading tree from server:', e);
+        }
       }
-    }
-    if (savedTreeId) {
-      setCurrentTreeId(parseInt(savedTreeId));
-    }
-    if (userData) {
-      try {
-        const parsed = JSON.parse(userData);
-        if (parsed.email) setUserEmail(parsed.email);
-      } catch (_) {
-        // ignore
+
+      // Fallback: загружаем из localStorage
+      const savedNodes = localStorage.getItem('familyTree_nodes');
+      const savedEdges = localStorage.getItem('familyTree_edges');
+
+      if (savedNodes) {
+        try {
+          setNodes(JSON.parse(savedNodes));
+        } catch (e) {
+          console.error('Error loading nodes', e);
+        }
       }
-    }
+      if (savedEdges) {
+        try {
+          setEdges(JSON.parse(savedEdges));
+        } catch (e) {
+          console.error('Error loading edges', e);
+        }
+      }
+      if (savedTreeId) {
+        setCurrentTreeId(parseInt(savedTreeId));
+      }
+      setIsLoading(false);
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
@@ -363,6 +401,7 @@ export function useTreeData(currentView: string) {
     selectedId,
     mode,
     isSaving,
+    isLoading,
     showSuccessToast,
     selectedNode,
     parents,
