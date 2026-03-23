@@ -45,35 +45,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }
 
     if view == 'users':
+        # auth_users — основная таблица пользователей
+        # family_trees привязаны к таблице users (старая), JOIN через email
         cur.execute(f"""
             SELECT
-                u.id,
-                u.email,
-                u.display_name,
-                u.created_at,
-                u.email_verified,
+                au.id,
+                au.email,
+                au.display_name,
+                au.created_at,
+                au.email_verified,
                 COUNT(DISTINCT ft.id) AS trees_count,
                 COUNT(DISTINCT p.id) AS persons_count,
                 MAX(ft.updated_at) AS last_activity
-            FROM {schema}.auth_users u
+            FROM {schema}.auth_users au
+            LEFT JOIN {schema}.users u ON u.email = au.email
             LEFT JOIN {schema}.family_trees ft ON ft.user_id = u.id
             LEFT JOIN {schema}.persons p ON p.tree_id = ft.id
-            GROUP BY u.id, u.email, u.display_name, u.created_at, u.email_verified
-            ORDER BY u.created_at DESC
+            GROUP BY au.id, au.email, au.display_name, au.created_at, au.email_verified
+            ORDER BY au.created_at DESC
         """)
         users_rows = cur.fetchall()
 
         users = []
         for row in users_rows:
-            user_id = row[0]
+            email = row[1]
             cur.execute(f"""
                 SELECT ft.id, ft.title, ft.created_at, ft.updated_at, COUNT(p.id) AS persons_count
                 FROM {schema}.family_trees ft
+                JOIN {schema}.users u ON ft.user_id = u.id
                 LEFT JOIN {schema}.persons p ON p.tree_id = ft.id
-                WHERE ft.user_id = %s
+                WHERE u.email = %s
                 GROUP BY ft.id, ft.title, ft.created_at, ft.updated_at
                 ORDER BY ft.updated_at DESC
-            """, (user_id,))
+            """, (email,))
             trees = [
                 {
                     'id': t[0],
