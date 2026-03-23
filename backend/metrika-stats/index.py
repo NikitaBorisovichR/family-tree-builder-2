@@ -1,5 +1,5 @@
 import json
-import os
+import os  # noqa
 from typing import Dict, Any
 from datetime import datetime, timedelta
 import urllib.request
