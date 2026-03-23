@@ -60,6 +60,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         with urllib.request.urlopen(stats_request) as response:
             stats_data = json.loads(response.read().decode())
+        print(f"Metrika response: {json.dumps(stats_data)[:500]}")
         
         # Запрос данных по целям
         goals_url = f'https://api-metrika.yandex.net/stat/v1/data?ids={counter_id}&metrics=ym:s:goalReachesAny&dimensions=ym:s:goalID&date1={date_start}&date2={date_end}&accuracy=full'
