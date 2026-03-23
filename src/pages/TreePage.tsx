@@ -23,7 +23,9 @@ export default function TreePage() {
         if (isAdmin(user.email)) {
           setShowAdminButton(true);
         }
-      } catch (e) {}
+      } catch (_) {
+        // ignore parse errors
+      }
     }
   }, []);
 

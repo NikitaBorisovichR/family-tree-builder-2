@@ -9,7 +9,7 @@ interface AuthModalProps {
   isOpen: boolean;
   mode: 'login' | 'register';
   onClose: () => void;
-  onSuccess: (sessionToken: string, userData: any) => void;
+  onSuccess: (sessionToken: string, userData: Record<string, unknown>) => void;
   onSwitchMode: () => void;
 }
 

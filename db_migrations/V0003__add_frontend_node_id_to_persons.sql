@@ -1,0 +1,1 @@
+ALTER TABLE "t_p57451291_family_tree_builder_".persons ADD COLUMN IF NOT EXISTS frontend_node_id VARCHAR(255) NULL;

@@ -35,7 +35,9 @@ export function useDemoTreeInteraction(nodes: FamilyNode[], edges: Edge[]) {
     }
   };
 
-  const handleMouseUp = () => {};
+  const handleMouseUp = () => {
+    // no-op: required by canvas interface
+  };
 
   const handleNodeDragStart = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();

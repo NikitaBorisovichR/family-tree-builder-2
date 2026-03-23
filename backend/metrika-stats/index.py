@@ -62,7 +62,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             stats_data = json.loads(response.read().decode())
         
         # Запрос данных по целям
-        goals_url = f'https://api-metrika.yandex.net/stat/v1/data?ids={counter_id}&metrics=ym:s:goal{counter_id}reaches&dimensions=ym:s:goalDimension&date1={date_start}&date2={date_end}&accuracy=full'
+        goals_url = f'https://api-metrika.yandex.net/stat/v1/data?ids={counter_id}&metrics=ym:s:goalReachesAny&dimensions=ym:s:goalID&date1={date_start}&date2={date_end}&accuracy=full'
         
         goals_request = urllib.request.Request(
             goals_url,

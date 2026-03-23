@@ -14,7 +14,7 @@ interface OnboardingFlowProps {
     fatherName: string;
     motherName: string;
   };
-  onFormDataChange: (data: any) => void;
+  onFormDataChange: (data: Partial<OnboardingFlowProps['formData']>) => void;
   onNext: () => void;
   onBack?: () => void;
   onSkip?: () => void;

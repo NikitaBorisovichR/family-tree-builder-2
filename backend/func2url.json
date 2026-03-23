@@ -1,7 +1,4 @@
 {
   "metrika-stats": "https://functions.poehali.dev/d917b670-852b-45d7-a273-26bf2e464999",
-  "auth": "https://functions.poehali.dev/dc0b8bbb-f7c0-468e-b1e1-97e5c421718f",
-  "save-tree": "https://functions.poehali.dev/aeece77d-47a7-4370-aaaf-cd7f3f0c85a3",
-  "list-trees": "https://functions.poehali.dev/37b2ca54-22fb-4d55-a1eb-6415bea1e80f",
-  "load-tree": "https://functions.poehali.dev/b34d5849-b70f-4939-be6a-ca52bbbf3b71"
+  "save-tree": "https://functions.poehali.dev/aeece77d-47a7-4370-aaaf-cd7f3f0c85a3"
 }

@@ -47,7 +47,7 @@ export default function DemoPage({ onClose }: DemoPageProps) {
             onMouseUp={handleMouseUp}
             onNodeDragStart={handleNodeDragStart}
             onSelectNode={setSelectedId}
-            onAddRelative={() => {}}
+            onAddRelative={() => { /* demo mode */ }}
             lastMousePos={lastMousePos}
           />
         </div>
@@ -58,9 +58,9 @@ export default function DemoPage({ onClose }: DemoPageProps) {
               selectedNode={selectedNode}
               parents={parents}
               onClose={() => setSelectedId(null)}
-              onUpdateNode={() => {}}
+              onUpdateNode={() => { /* demo mode */ }}
               onSelectNode={setSelectedId}
-              onDeleteNode={() => {}}
+              onDeleteNode={() => { /* demo mode */ }}
             />
           </div>
         )}

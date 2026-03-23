@@ -17,7 +17,7 @@ export default function LandingPage({ onStart, onGoToDashboard, onGoToTree }: La
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [authMode, setAuthMode] = React.useState<'login' | 'register'>('login');
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
-  const [userData, setUserData] = React.useState<any>(null);
+  const [userData, setUserData] = React.useState<Record<string, unknown> | null>(null);
   const [hasExistingTree, setHasExistingTree] = React.useState(false);
 
   React.useEffect(() => {
