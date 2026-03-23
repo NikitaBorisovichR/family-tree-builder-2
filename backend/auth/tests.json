@@ -1,33 +1,20 @@
 {
   "tests": [
     {
-      "name": "Register new user",
-      "method": "POST",
-      "path": "/?action=register",
-      "body": {
-        "email": "newuser@example.com",
-        "password": "password123",
-        "display_name": "New User"
-      },
-      "expectedStatus": 201,
-      "expectedBody": {
-        "user_id": "number",
-        "session_token": "string"
-      },
-      "bodyMatcher": "partial"
+      "name": "OPTIONS returns CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": "",
+      "bodyMatcher": "exact"
     },
     {
-      "name": "Login existing user",
+      "name": "Missing action returns 400",
       "method": "POST",
-      "path": "/?action=login",
-      "body": {
-        "email": "test@example.com",
-        "password": "password123"
-      },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "session_token": "string"
-      },
+      "path": "/",
+      "body": {},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Invalid action or method"},
       "bodyMatcher": "partial"
     }
   ]

@@ -324,6 +324,40 @@ def handle_oauth_vk(query_params: Dict, context: Any, database_url: str) -> Dict
     frontend_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/auth/callback?session_token={session_token}"
     return {'statusCode': 302, 'headers': {'Location': frontend_url}, 'body': ''}
 
+def handle_update_profile(body: Dict, session_token: str, database_url: str) -> Dict[str, Any]:
+    """Обновление имени пользователя"""
+    display_name = body.get('display_name', '').strip()
+    if not display_name:
+        return {'statusCode': 400, 'body': json.dumps({'error': 'display_name is required'})}
+
+    conn = psycopg2.connect(database_url)
+    cur = conn.cursor()
+
+    cur.execute('''
+        SELECT s.user_id FROM auth_sessions s
+        WHERE s.session_token = %s AND s.expires_at > %s
+    ''', (session_token, datetime.utcnow()))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        return {'statusCode': 401, 'body': json.dumps({'error': 'Invalid or expired session'})}
+
+    user_id = row[0]
+    cur.execute(
+        'UPDATE auth_users SET display_name = %s, updated_at = %s WHERE id = %s',
+        (display_name, datetime.utcnow(), user_id)
+    )
+    conn.commit()
+    cur.execute('SELECT email, display_name, avatar_url FROM auth_users WHERE id = %s', (user_id,))
+    u = cur.fetchone()
+    cur.close(); conn.close()
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({'email': u[0], 'display_name': u[1], 'avatar_url': u[2]})
+    }
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'GET')
     
@@ -371,6 +405,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 result = {'statusCode': 401, 'body': json.dumps({'error': 'Session token required'})}
             else:
                 result = handle_verify(session_token, database_url)
+        elif action == 'update_profile' and method == 'POST':
+            headers = event.get('headers', {})
+            session_token = headers.get('X-Session-Token') or headers.get('x-session-token')
+            if not session_token:
+                result = {'statusCode': 401, 'body': json.dumps({'error': 'Session token required'})}
+            else:
+                body = json.loads(event.get('body', '{}'))
+                result = handle_update_profile(body, session_token, database_url)
         else:
             result = {'statusCode': 400, 'body': json.dumps({'error': 'Invalid action or method'})}
         

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import DashboardOverviewTab from '@/components/dashboard/DashboardOverviewTab';
 import DashboardAchievementsTab from '@/components/dashboard/DashboardAchievementsTab';
 import DashboardStatisticsTab from '@/components/dashboard/DashboardStatisticsTab';
+import DashboardAccountTab from '@/components/dashboard/DashboardAccountTab';
 import { FamilyNode, Edge } from '@/components/TreeCanvas';
 import { 
   calculateStats, 
@@ -15,13 +16,13 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'statistics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'statistics' | 'account'>('overview');
   const [nodes, setNodes] = useState<FamilyNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
   useEffect(() => {
-    const savedNodes = localStorage.getItem('tree_nodes');
-    const savedEdges = localStorage.getItem('tree_edges');
+    const savedNodes = localStorage.getItem('familyTree_nodes');
+    const savedEdges = localStorage.getItem('familyTree_edges');
     
     if (savedNodes) {
       try {
@@ -143,6 +144,17 @@ export default function DashboardPage() {
               <Icon name="BarChart3" size={16} className="inline mr-2" />
               Статистика
             </button>
+            <button
+              onClick={() => setActiveTab('account')}
+              className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
+                activeTab === 'account'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon name="UserCircle" size={16} className="inline mr-2" />
+              Аккаунт
+            </button>
           </div>
         </div>
 
@@ -154,6 +166,9 @@ export default function DashboardPage() {
         )}
         {activeTab === 'statistics' && (
           <DashboardStatisticsTab stats={stats} nodes={nodes} />
+        )}
+        {activeTab === 'account' && (
+          <DashboardAccountTab />
         )}
       </div>
     </div>
