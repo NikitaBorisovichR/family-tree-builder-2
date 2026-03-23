@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 import HelpTooltip from '@/components/HelpTooltip';
 import EmptyTreeState from '@/components/EmptyTreeState';
@@ -12,10 +12,17 @@ import { isAdmin } from '@/config/admins';
 
 export default function TreePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showWelcome, setShowWelcome] = useState(true);
   const [showAdminButton, setShowAdminButton] = useState(false);
 
+  const isReadonly = searchParams.get('readonly') === 'true';
+  const adminTreeId = searchParams.get('tree_id');
+
   React.useEffect(() => {
+    if (adminTreeId) {
+      localStorage.setItem('familyTree_treeId', adminTreeId);
+    }
     const userData = localStorage.getItem('user_data');
     if (userData) {
       try {
@@ -27,7 +34,7 @@ export default function TreePage() {
         // ignore parse errors
       }
     }
-  }, []);
+  }, [adminTreeId]);
 
   const handleLogout = () => {
     localStorage.removeItem('session_token');
@@ -93,88 +100,70 @@ export default function TreePage() {
       <div className="h-16 bg-white border-b border-border flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => isReadonly ? navigate('/admin') : navigate('/')}
             className="text-muted-foreground hover:text-primary transition-colors"
-            title="На главную"
+            title={isReadonly ? 'Вернуться в админ-панель' : 'На главную'}
           >
-            <Icon name="Home" size={20} />
+            <Icon name={isReadonly ? 'ArrowLeft' : 'Home'} size={20} />
           </button>
           <div className="font-bold text-primary flex items-center gap-2">
             <Icon name="Share2" /> Семейные корни
           </div>
-        </div>
-        <div className="flex gap-2 md:gap-4 items-center">
-          <button
-            onClick={saveTreeToDatabase}
-            disabled={isSaving}
-            className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 text-xs md:text-sm font-medium flex items-center gap-2"
-            title="Сохранить в базу данных"
-          >
-            <Icon name={isSaving ? "Loader2" : "Save"} size={16} className={isSaving ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
-          </button>
-          
-          {!isSaving && nodes.length > 1 && (
-            <span className="text-xs text-muted-foreground hidden lg:inline">
-              Автосохранение
+          {isReadonly && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+              <Icon name="Eye" size={12} /> Режим просмотра
             </span>
           )}
+        </div>
+        <div className="flex gap-2 md:gap-4 items-center">
+          {!isReadonly && (
+            <>
+              <button
+                onClick={saveTreeToDatabase}
+                disabled={isSaving}
+                className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 text-xs md:text-sm font-medium flex items-center gap-2"
+                title="Сохранить в базу данных"
+              >
+                <Icon name={isSaving ? "Loader2" : "Save"} size={16} className={isSaving ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+              </button>
 
-          <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
+              {!isSaving && nodes.length > 1 && (
+                <span className="text-xs text-muted-foreground hidden lg:inline">Автосохранение</span>
+              )}
 
-          <button
-            onClick={handleExport}
-            className="text-muted-foreground hover:text-primary transition-colors"
-            title="Экспорт в JSON"
-          >
-            <Icon name="Download" size={20} />
-          </button>
+              <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
 
-          <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-muted-foreground hover:text-primary transition-colors"
-            title="Импорт из JSON"
-          >
-            <Icon name="Upload" size={20} />
-          </button>
+              <button onClick={handleExport} className="text-muted-foreground hover:text-primary transition-colors" title="Экспорт в JSON">
+                <Icon name="Download" size={20} />
+              </button>
 
-          <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
+              <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary transition-colors" title="Импорт из JSON">
+                <Icon name="Upload" size={20} />
+              </button>
+            </>
+          )}
 
-          <button 
-            onClick={() => navigate('/tutorial')}
-            className="text-muted-foreground hover:text-primary transition-colors"
-            title="Обучение"
-          >
-            <Icon name="GraduationCap" size={20} />
-          </button>
-
-          <button 
-            onClick={() => navigate('/archive')}
-            className="text-muted-foreground hover:text-primary transition-colors"
-            title="Архивы"
-          >
-            <Icon name="Archive" size={20} />
-          </button>
-
-          <button 
-            onClick={() => navigate('/support')}
-            className="text-muted-foreground hover:text-primary transition-colors"
-            title="Поддержка"
-          >
-            <Icon name="HelpCircle" size={20} />
-          </button>
-
-          <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
-
-          {showAdminButton && (
-            <button 
-              onClick={() => navigate('/admin')}
-              className="text-muted-foreground hover:text-primary transition-colors"
-              title="Панель администратора"
-            >
-              <Icon name="Shield" size={20} />
-            </button>
+          {!isReadonly && (
+            <>
+              <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
+              <button onClick={() => navigate('/tutorial')} className="text-muted-foreground hover:text-primary transition-colors" title="Обучение">
+                <Icon name="GraduationCap" size={20} />
+              </button>
+              <button onClick={() => navigate('/archive')} className="text-muted-foreground hover:text-primary transition-colors" title="Архивы">
+                <Icon name="Archive" size={20} />
+              </button>
+              <button onClick={() => navigate('/support')} className="text-muted-foreground hover:text-primary transition-colors" title="Поддержка">
+                <Icon name="HelpCircle" size={20} />
+              </button>
+              <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
+              {showAdminButton && (
+                <button onClick={() => navigate('/admin')} className="text-muted-foreground hover:text-primary transition-colors" title="Панель администратора">
+                  <Icon name="Shield" size={20} />
+                </button>
+              )}
+            </>
           )}
 
           <HelpTooltip />
@@ -219,7 +208,7 @@ export default function TreePage() {
           lastMousePos={lastMousePos}
         />
 
-        {mode === 'canvas' && (
+        {mode === 'canvas' && !isReadonly && (
           <>
             {selectedId && (
               <div 

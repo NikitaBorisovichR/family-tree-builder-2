@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function UserRow({ user }: { user: User }) {
+function UserRow({ user, onViewTree }: { user: User; onViewTree: (treeId: number) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -107,6 +108,12 @@ function UserRow({ user }: { user: User }) {
                     <span className="text-xs text-muted-foreground hidden sm:block">
                       {formatDate(tree.updated_at)}
                     </span>
+                    <button
+                      onClick={() => onViewTree(tree.id)}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                    >
+                      <Icon name="Eye" size={13} /> Открыть
+                    </button>
                   </div>
                 </div>
               ))}
@@ -119,6 +126,7 @@ function UserRow({ user }: { user: User }) {
 }
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
+  const navigate = useNavigate();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState(false);
@@ -329,7 +337,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <div className="border-t border-border p-4 space-y-2">
               {users.length === 0
                 ? <p className="text-sm text-muted-foreground text-center py-4">Нет пользователей</p>
-                : users.map(user => <UserRow key={user.id} user={user} />)
+                : users.map(user => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    onViewTree={(treeId) => navigate(`/tree?tree_id=${treeId}&readonly=true`)}
+                  />
+                ))
               }
             </div>
           )}
