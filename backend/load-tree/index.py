@@ -52,9 +52,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         cursor.execute(
             """SELECT ft.id, ft.title, ft.description, ft.created_at, ft.updated_at
             FROM "t_p57451291_family_tree_builder_".family_trees ft
-            JOIN "t_p57451291_family_tree_builder_".users u ON ft.user_id = u.id
-            WHERE ft.id = %s AND u.email = %s""",
-            (tree_id, user_email)
+            LEFT JOIN "t_p57451291_family_tree_builder_".users u ON ft.user_id = u.id
+            LEFT JOIN "t_p57451291_family_tree_builder_".auth_users au ON ft.auth_user_id = au.id
+            WHERE ft.id = %s AND (u.email = %s OR au.email = %s)""",
+            (tree_id, user_email, user_email)
         )
     else:
         cursor.execute(

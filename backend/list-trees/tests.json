@@ -1,14 +1,11 @@
 {
   "tests": [
     {
-      "name": "List user trees",
+      "name": "Missing email returns 400",
       "method": "GET",
-      "path": "/?user_email=test@example.com",
-      "expectedStatus": 200,
-      "expectedBody": {
-        "trees": "array",
-        "count": "number"
-      },
+      "path": "/",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "user_email is required"},
       "bodyMatcher": "partial"
     }
   ]

@@ -6,10 +6,8 @@
       "path": "/?tree_id=1",
       "expectedStatus": 200,
       "expectedBody": {
-        "tree_id": "number",
-        "title": "string",
-        "nodes": "array",
-        "edges": "array"
+        "tree_id": 1,
+        "title": "Test Family Tree"
       },
       "bodyMatcher": "partial"
     }

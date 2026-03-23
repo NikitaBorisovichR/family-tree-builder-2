@@ -58,8 +58,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 COUNT(DISTINCT p.id) AS persons_count,
                 MAX(ft.updated_at) AS last_activity
             FROM {schema}.auth_users au
-            LEFT JOIN {schema}.users u ON u.email = au.email
-            LEFT JOIN {schema}.family_trees ft ON ft.user_id = u.id
+            LEFT JOIN {schema}.family_trees ft
+                ON ft.auth_user_id = au.id
+                OR ft.user_id IN (SELECT id FROM {schema}.users WHERE email = au.email)
             LEFT JOIN {schema}.persons p ON p.tree_id = ft.id
             GROUP BY au.id, au.email, au.display_name, au.created_at, au.email_verified
             ORDER BY au.created_at DESC
@@ -68,16 +69,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         users = []
         for row in users_rows:
+            auth_user_id = row[0]
             email = row[1]
             cur.execute(f"""
-                SELECT ft.id, ft.title, ft.created_at, ft.updated_at, COUNT(p.id) AS persons_count
+                SELECT DISTINCT ft.id, ft.title, ft.created_at, ft.updated_at, COUNT(p.id) AS persons_count
                 FROM {schema}.family_trees ft
-                JOIN {schema}.users u ON ft.user_id = u.id
+                LEFT JOIN {schema}.users u ON ft.user_id = u.id
                 LEFT JOIN {schema}.persons p ON p.tree_id = ft.id
-                WHERE u.email = %s
+                WHERE ft.auth_user_id = %s OR u.email = %s
                 GROUP BY ft.id, ft.title, ft.created_at, ft.updated_at
                 ORDER BY ft.updated_at DESC
-            """, (email,))
+            """, (auth_user_id, email))
             trees = [
                 {
                     'id': t[0],

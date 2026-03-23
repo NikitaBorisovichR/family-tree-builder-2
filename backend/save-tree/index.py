@@ -54,17 +54,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     try:
+        # Ищем пользователя в auth_users (новая таблица)
+        cursor.execute(
+            "SELECT id FROM \"t_p57451291_family_tree_builder_\".auth_users WHERE email = %s",
+            (user_email,)
+        )
+        auth_user = cursor.fetchone()
+
+        # Fallback: старая таблица users (для совместимости)
         cursor.execute(
             "INSERT INTO \"t_p57451291_family_tree_builder_\".users (email) VALUES (%s) ON CONFLICT (email) DO UPDATE SET updated_at = CURRENT_TIMESTAMP RETURNING id",
             (user_email,)
         )
         user_result = cursor.fetchone()
         user_id = user_result['id']
-        
+        auth_user_id = auth_user['id'] if auth_user else None
+
         if tree_id:
+            # Ищем дерево по tree_id — проверяем через auth_user_id или старый user_id
             cursor.execute(
-                "UPDATE \"t_p57451291_family_tree_builder_\".family_trees SET title = %s, description = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s RETURNING id",
-                (title, description, tree_id, user_id)
+                """UPDATE "t_p57451291_family_tree_builder_".family_trees
+                SET title = %s, description = %s, updated_at = CURRENT_TIMESTAMP,
+                    auth_user_id = COALESCE(auth_user_id, %s)
+                WHERE id = %s AND (user_id = %s OR auth_user_id = %s)
+                RETURNING id""",
+                (title, description, auth_user_id, tree_id, user_id, auth_user_id)
             )
             result = cursor.fetchone()
             if result:
@@ -79,8 +93,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
         else:
             cursor.execute(
-                "INSERT INTO \"t_p57451291_family_tree_builder_\".family_trees (user_id, title, description) VALUES (%s, %s, %s) RETURNING id",
-                (user_id, title, description)
+                "INSERT INTO \"t_p57451291_family_tree_builder_\".family_trees (user_id, auth_user_id, title, description) VALUES (%s, %s, %s, %s) RETURNING id",
+                (user_id, auth_user_id, title, description)
             )
             result = cursor.fetchone()
             saved_tree_id = result['id']

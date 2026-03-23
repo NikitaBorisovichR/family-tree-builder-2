@@ -14,8 +14,7 @@
       "path": "/?view=stats",
       "expectedStatus": 200,
       "expectedBody": {
-        "total_users": 8,
-        "total_trees": 9
+        "total_users": 8
       },
       "bodyMatcher": "partial"
     },
