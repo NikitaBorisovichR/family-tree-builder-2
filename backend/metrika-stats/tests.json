@@ -9,14 +9,23 @@
       "bodyMatcher": "exact"
     },
     {
-      "name": "GET request returns stats from DB",
+      "name": "GET stats returns summary",
       "method": "GET",
-      "path": "/",
+      "path": "/?view=stats",
       "expectedStatus": 200,
       "expectedBody": {
-        "total_users": "number",
-        "total_trees": "number",
-        "total_persons": "number"
+        "total_users": 8,
+        "total_trees": 9
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET users returns list",
+      "method": "GET",
+      "path": "/?view=users",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "total": 8
       },
       "bodyMatcher": "partial"
     }
