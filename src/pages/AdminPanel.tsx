@@ -10,15 +10,12 @@ interface AdminPanelProps {
 
 interface AnalyticsData {
   totalUsers: number;
+  newUsers7d: number;
   activeToday: number;
-  treesSaved: number;
-  personsAdded: number;
-  plansSelected: {
-    start: number;
-    premium_month: number;
-    premium_half: number;
-    premium_year: number;
-  };
+  totalTrees: number;
+  trees7d: number;
+  totalPersons: number;
+  persons7d: number;
 }
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
@@ -27,15 +24,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [analyticsError, setAnalyticsError] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
+    newUsers7d: 0,
     activeToday: 0,
-    treesSaved: 0,
-    personsAdded: 0,
-    plansSelected: {
-      start: 0,
-      premium_month: 0,
-      premium_half: 0,
-      premium_year: 0,
-    },
+    totalTrees: 0,
+    trees7d: 0,
+    totalPersons: 0,
+    persons7d: 0,
   });
 
   useEffect(() => {
@@ -76,19 +70,14 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         return;
       }
       
-      const goals = data.goals || {};
-      
       setAnalytics({
-        totalUsers: data.users || 0,
-        activeToday: Math.round((data.users || 0) * 0.15),
-        treesSaved: goals['tree_first_save'] || 0,
-        personsAdded: goals['person_added'] || 0,
-        plansSelected: {
-          start: goals['plan_selected_Старт'] || 0,
-          premium_month: goals['plan_selected_Премиум месяц'] || 0,
-          premium_half: goals['plan_selected_Премиум полгода'] || 0,
-          premium_year: goals['plan_selected_Премиум год'] || 0,
-        },
+        totalUsers: data.total_users || 0,
+        newUsers7d: data.new_users_7d || 0,
+        activeToday: data.active_today || 0,
+        totalTrees: data.total_trees || 0,
+        trees7d: data.trees_7d || 0,
+        totalPersons: data.total_persons || 0,
+        persons7d: data.persons_7d || 0,
       });
     } catch (error) {
       setAnalyticsError(true);
@@ -168,7 +157,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               </div>
             </div>
             <p className="text-3xl font-bold">{analytics.totalUsers}</p>
-            <p className="text-xs text-muted-foreground mt-1">За последние 7 дней</p>
+            <p className="text-xs text-muted-foreground mt-1">+{analytics.newUsers7d} за 7 дней</p>
           </Card>
 
           <Card className="p-6">
@@ -184,13 +173,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Деревьев сохранено</span>
+              <span className="text-sm text-muted-foreground">Деревьев создано</span>
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Icon name="Save" size={20} className="text-purple-600" />
+                <Icon name="GitBranch" size={20} className="text-purple-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold">{analytics.treesSaved}</p>
-            <p className="text-xs text-muted-foreground mt-1">Первых сохранений</p>
+            <p className="text-3xl font-bold">{analytics.totalTrees}</p>
+            <p className="text-xs text-muted-foreground mt-1">+{analytics.trees7d} за 7 дней</p>
           </Card>
 
           <Card className="p-6">
@@ -200,8 +189,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <Icon name="UserPlus" size={20} className="text-amber-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold">{analytics.personsAdded}</p>
-            <p className="text-xs text-muted-foreground mt-1">Всего добавлено</p>
+            <p className="text-3xl font-bold">{analytics.totalPersons}</p>
+            <p className="text-xs text-muted-foreground mt-1">+{analytics.persons7d} за 7 дней</p>
           </Card>
         </div>
 
@@ -211,7 +200,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <Icon name="AlertTriangle" size={20} className="text-amber-600 shrink-0" />
             <div>
               <p className="font-semibold text-amber-800">Не удалось загрузить данные аналитики</p>
-              <p className="text-sm text-amber-700">Проверьте токен Яндекс.Метрики в настройках секретов. Данные ниже могут быть неактуальны.</p>
+              <p className="text-sm text-amber-700">Попробуйте обновить страницу или повторите попытку позже.</p>
             </div>
             <Button variant="outline" size="sm" className="ml-auto shrink-0" onClick={refreshMetrics}>
               Повторить

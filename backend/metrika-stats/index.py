@@ -1,20 +1,17 @@
 import json
-import os  # noqa
+import os
+import psycopg2  # noqa: F401
 from typing import Dict, Any
 from datetime import datetime, timedelta
-import urllib.request
-import urllib.error
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    '''
-    Business: Получение статистики из Яндекс.Метрики для админ-панели
-    Args: event - HTTP запрос с методом GET
-          context - контекст функции
-    Returns: JSON с метриками: визиты, посетители, конверсии по целям
-    '''
+    """
+    Получение статистики из БД для админ-панели:
+    пользователи, деревья, персоны, сессии за последние 7 дней
+    """
     method: str = event.get('httpMethod', 'GET')
-    
-    # CORS preflight
+
     if method == 'OPTIONS':
         return {
             'statusCode': 200,
@@ -26,107 +23,73 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             },
             'body': ''
         }
-    
+
     if method != 'GET':
         return {
             'statusCode': 405,
             'headers': {'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({'error': 'Method not allowed'})
         }
-    
-    # Получаем токен из environment
-    metrika_token = os.environ.get('YANDEX_METRIKA_TOKEN')
-    if not metrika_token:
-        return {
-            'statusCode': 500,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Metrika token not configured'})
-        }
-    
-    counter_id = '101026698'
-    
-    # Получаем данные за последние 7 дней
-    date_end = datetime.now().strftime('%Y-%m-%d')
-    date_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-    
-    try:
-        # Запрос общей статистики
-        stats_url = f'https://api-metrika.yandex.net/stat/v1/data?ids={counter_id}&metrics=ym:s:visits,ym:s:users,ym:s:pageviews&date1={date_start}&date2={date_end}&accuracy=full'
-        
-        stats_request = urllib.request.Request(
-            stats_url,
-            headers={'Authorization': f'OAuth {metrika_token}'}
-        )
-        
-        with urllib.request.urlopen(stats_request) as response:
-            stats_data = json.loads(response.read().decode())
-        print(f"Metrika response: {json.dumps(stats_data)[:500]}")
-        
-        # Запрос данных по целям
-        goals_url = f'https://api-metrika.yandex.net/stat/v1/data?ids={counter_id}&metrics=ym:s:goalReachesAny&dimensions=ym:s:goalID&date1={date_start}&date2={date_end}&accuracy=full'
-        
-        goals_request = urllib.request.Request(
-            goals_url,
-            headers={'Authorization': f'OAuth {metrika_token}'}
-        )
-        
-        goals_data = {}
-        try:
-            with urllib.request.urlopen(goals_request) as response:
-                goals_response = json.loads(response.read().decode())
-                
-                # Парсим данные по целям
-                if 'data' in goals_response:
-                    for item in goals_response['data']:
-                        dimensions = item.get('dimensions', [])
-                        metrics = item.get('metrics', [])
-                        if dimensions and metrics:
-                            goal_name = dimensions[0].get('name', '')
-                            goal_reaches = metrics[0]
-                            goals_data[goal_name] = goal_reaches
-        except Exception as e:
-            print(f"Error fetching goals: {e}")
-        
-        # Формируем ответ
-        totals = stats_data.get('totals', [0, 0, 0])
-        
-        result = {
-            'visits': totals[0],
-            'users': totals[1],
-            'pageviews': totals[2],
-            'period': {
-                'start': date_start,
-                'end': date_end
-            },
-            'goals': goals_data,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'isBase64Encoded': False,
-            'body': json.dumps(result)
-        }
-        
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode() if e.fp else 'Unknown error'
-        return {
-            'statusCode': e.code,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'error': 'Metrika API error',
-                'details': error_body,
-                'status_code': e.code
-            })
-        }
-    
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': str(e)})
-        }
+
+    schema = os.environ.get('MAIN_DB_SCHEMA', 'public')
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    cur = conn.cursor()
+
+    date_7_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    date_today = datetime.now().strftime('%Y-%m-%d')
+    date_24h_ago = (datetime.now() - timedelta(hours=24)).isoformat()
+
+    # Всего пользователей
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.auth_users")
+    total_users = cur.fetchone()[0]
+
+    # Новых за 7 дней
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.auth_users WHERE created_at >= %s", (date_7_days_ago,))
+    new_users_7d = cur.fetchone()[0]
+
+    # Активных за 24 часа (по сессиям)
+    cur.execute(f"SELECT COUNT(DISTINCT user_id) FROM {schema}.auth_sessions WHERE created_at >= %s", (date_24h_ago,))
+    active_today = cur.fetchone()[0]
+
+    # Всего деревьев
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.family_trees")
+    total_trees = cur.fetchone()[0]
+
+    # Деревьев за 7 дней
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.family_trees WHERE created_at >= %s", (date_7_days_ago,))
+    trees_7d = cur.fetchone()[0]
+
+    # Всего персон
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.persons")
+    total_persons = cur.fetchone()[0]
+
+    # Персон за 7 дней
+    cur.execute(f"SELECT COUNT(*) FROM {schema}.persons WHERE created_at >= %s", (date_7_days_ago,))
+    persons_7d = cur.fetchone()[0]
+
+    cur.close()
+    conn.close()
+
+    result = {
+        'total_users': total_users,
+        'new_users_7d': new_users_7d,
+        'active_today': active_today,
+        'total_trees': total_trees,
+        'trees_7d': trees_7d,
+        'total_persons': total_persons,
+        'persons_7d': persons_7d,
+        'period': {
+            'start': date_7_days_ago,
+            'end': date_today
+        },
+        'timestamp': datetime.now().isoformat()
+    }
+
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+        'body': json.dumps(result)
+    }

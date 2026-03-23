@@ -9,14 +9,14 @@
       "bodyMatcher": "exact"
     },
     {
-      "name": "GET request returns metrics structure",
+      "name": "GET request returns stats from DB",
       "method": "GET",
       "path": "/",
       "expectedStatus": 200,
       "expectedBody": {
-        "visits": "number",
-        "users": "number",
-        "pageviews": "number"
+        "total_users": "number",
+        "total_trees": "number",
+        "total_persons": "number"
       },
       "bodyMatcher": "partial"
     }
