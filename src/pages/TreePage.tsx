@@ -20,9 +20,6 @@ export default function TreePage() {
   const adminTreeId = searchParams.get('tree_id');
 
   React.useEffect(() => {
-    if (adminTreeId) {
-      localStorage.setItem('familyTree_treeId', adminTreeId);
-    }
     const userData = localStorage.getItem('user_data');
     if (userData) {
       try {
@@ -62,7 +59,7 @@ export default function TreePage() {
     saveTreeToDatabase,
     handleExport,
     handleImport
-  } = useTreeData('tree');
+  } = useTreeData('tree', isReadonly ? adminTreeId : null);
 
   const {
     transform,

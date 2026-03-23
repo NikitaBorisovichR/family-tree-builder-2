@@ -31,7 +31,7 @@ const API_URLS = {
   listTrees: func2url['list-trees']
 };
 
-export function useTreeData(currentView: string) {
+export function useTreeData(currentView: string, overrideTreeId?: string | null) {
   const [nodes, setNodes] = useState<FamilyNode[]>(INITIAL_NODES);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function useTreeData(currentView: string) {
 
   useEffect(() => {
     const init = async () => {
-      const savedTreeId = localStorage.getItem('familyTree_treeId');
+      const savedTreeId = overrideTreeId || localStorage.getItem('familyTree_treeId');
       const userData = localStorage.getItem('user_data');
 
       let email = '';
@@ -102,6 +102,27 @@ export function useTreeData(currentView: string) {
         } catch (_) {
           // ignore
         }
+      }
+
+      // В режиме просмотра чужого дерева — грузим без проверки email
+      if (overrideTreeId && API_URLS.loadTree) {
+        try {
+          const response = await fetch(
+            `${API_URLS.loadTree}?tree_id=${overrideTreeId}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setNodes(data.nodes && data.nodes.length > 0 ? data.nodes : INITIAL_NODES);
+            setEdges(data.edges || []);
+            setCurrentTreeId(data.tree_id);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Error loading tree from server:', e);
+        }
+        setIsLoading(false);
+        return;
       }
 
       // Загружаем с сервера если есть email и treeId
