@@ -7,18 +7,19 @@ interface TreeEdgesProps {
 }
 
 // ── Константы карточки (должны совпадать с TreeNode) ──────────────────────────
+// Карточка 120px, кружок 90px (w-[90px]), центрируется flex items-center
 const NW    = 120;  // ширина карточки
-const AV_R  = 45;   // радиус аватара
-const AV_T  = 8;    // отступ аватара сверху
-const AV_CY = AV_T + AV_R;       // 53 — центр аватара по Y
-const AV_BOT = AV_T + AV_R * 2;  // 98 — низ аватара
+const AV_D  = 90;   // диаметр кружка (w-[90px] h-[90px])
+const AV_R  = AV_D / 2;  // 45 — радиус аватара
+const AV_T  = 0;    // кружок идёт с самого верха карточки (нет отступа)
+const AV_CY = AV_T + AV_R;       // 45 — центр аватара по Y
+const AV_BOT = AV_T + AV_D;      // 90 — низ аватара
 const CX    = NW / 2;             // 60 — горизонтальный центр карточки
 
-// Горизонтальный центр кружка (совпадает с CX)
-// Правый край кружка: CX + AV_R = 105
-// Левый край кружка: CX - AV_R = 15
-const AV_RIGHT = CX + AV_R;  // 105
-const AV_LEFT  = CX - AV_R;  // 15
+// Горизонтальный центр кружка: карточка 120px, кружок 90px → отступ = 15px
+const AV_CX_OFFSET = (NW - AV_D) / 2;  // 15
+const AV_RIGHT = AV_CX_OFFSET + AV_D;  // 105 — правый край кружка
+const AV_LEFT  = AV_CX_OFFSET;          // 15  — левый край кружка
 
 const STROKE = '#b0bec5';
 const SW = 1.5;
@@ -206,30 +207,30 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
       const busX1 = Math.min(minChildX, fromX);
       const busX2 = Math.max(maxChildX, fromX);
 
-      // Вертикаль вниз + горизонтальная шина — единый path со скруглениями
-      const spinePath = roundedPath([
-        { x: fromX,  y: fromY },
-        { x: fromX,  y: busY  },
-        { x: busX1,  y: busY  },
-      ]);
-      // Правая часть шины отдельно (чтобы не было артефакта при fromX внутри)
-      const spinePathR = roundedPath([
-        { x: fromX,  y: busY },
-        { x: busX2,  y: busY },
-      ]);
-
+      // Вертикаль от родителей вниз до шины — прямая, без скруглений
       els.push(
-        <path key={`spine-l-${groupId}`}
-          d={spinePath} fill="none" stroke={STROKE} strokeWidth={SW} />,
-        <path key={`spine-r-${groupId}`}
-          d={spinePathR} fill="none" stroke={STROKE} strokeWidth={SW} />,
+        <line key={`down-${groupId}`}
+          x1={fromX} y1={fromY} x2={fromX} y2={busY}
+          stroke={STROKE} strokeWidth={SW} />,
       );
 
-      // Вертикали от шины к каждому ребёнку со скруглением сверху
+      // Горизонтальная шина — от края до края, пересекает вертикаль прямо (пункт 2)
+      els.push(
+        <line key={`bus-${groupId}`}
+          x1={busX1} y1={busY} x2={busX2} y2={busY}
+          stroke={STROKE} strokeWidth={SW} />,
+      );
+
+      // Вертикали от шины к каждому ребёнку — угол шина→вертикаль скруглён (пункт 3)
+      // Скругление: горизонталь подходит к точке, потом плавный поворот вниз
       tops.forEach((t, i) => {
+        // Определяем с какой стороны шина подходит к этой точке
+        // (если точка левее fromX — подходим справа, иначе слева)
+        const approach = t.x <= fromX ? R : -R;
         const d = roundedPath([
-          { x: t.x, y: busY },
-          { x: t.x, y: t.y  },
+          { x: t.x + approach, y: busY },
+          { x: t.x,            y: busY },
+          { x: t.x,            y: t.y  },
         ]);
         els.push(
           <path key={`child-${groupId}-${i}`}
