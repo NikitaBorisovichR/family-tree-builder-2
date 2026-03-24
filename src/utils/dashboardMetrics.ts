@@ -259,45 +259,65 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export function getRecentActivity(nodes: FamilyNode[]): RecentActivity[] {
-  const activities: RecentActivity[] = [];
-  
-  const sortedNodes = [...nodes].sort((a, b) => {
-    const aTime = a.createdAt || 0;
-    const bTime = b.createdAt || 0;
-    return bTime - aTime;
-  }).slice(0, 4);
-  
-  sortedNodes.forEach((node) => {
-    const createdAt = node.createdAt || 0;
-    const timeAgo = formatTimeAgo(createdAt);
-    
-    if (node.bio && node.bio.length > 50) {
-      activities.push({
-        action: 'Написана история',
-        person: `${node.firstName} ${node.lastName}`,
-        time: timeAgo,
-        icon: 'BookOpen'
-      });
-    } else if (node.firstName && node.lastName) {
-      activities.push({
-        action: 'Добавлен член семьи',
-        person: `${node.firstName} ${node.lastName}`,
-        time: timeAgo,
-        icon: 'UserPlus'
+  type EventItem = { timestamp: number; activity: RecentActivity };
+  const events: EventItem[] = [];
+
+  nodes.forEach((node) => {
+    const name = `${node.firstName} ${node.lastName}`.trim();
+    if (!name) return;
+
+    if (node.createdAt) {
+      events.push({
+        timestamp: node.createdAt,
+        activity: {
+          action: 'Добавлен член семьи',
+          person: name,
+          time: formatTimeAgo(node.createdAt),
+          icon: 'UserPlus'
+        }
       });
     }
+
+    if (node.updatedAt && node.updatedAt !== node.createdAt) {
+      if (node.bio && node.bio.length > 50) {
+        events.push({
+          timestamp: node.updatedAt,
+          activity: {
+            action: 'Написана история',
+            person: name,
+            time: formatTimeAgo(node.updatedAt),
+            icon: 'BookOpen'
+          }
+        });
+      } else {
+        events.push({
+          timestamp: node.updatedAt,
+          activity: {
+            action: 'Обновлён профиль',
+            person: name,
+            time: formatTimeAgo(node.updatedAt),
+            icon: 'Pencil'
+          }
+        });
+      }
+    }
   });
-  
-  while (activities.length < 4) {
-    activities.push({
+
+  const sorted = events
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 4)
+    .map((e) => e.activity);
+
+  while (sorted.length < 4) {
+    sorted.push({
       action: 'Нет активности',
       person: 'Добавьте новых членов семьи',
       time: '',
       icon: 'Clock'
     });
   }
-  
-  return activities.slice(0, 4);
+
+  return sorted;
 }
 
 export function getProfileCompleteness(nodes: FamilyNode[]): {

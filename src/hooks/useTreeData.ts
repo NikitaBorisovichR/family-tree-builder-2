@@ -377,7 +377,7 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
   };
 
   const updateSelectedNode = (field: keyof FamilyNode, value: FamilyNode[keyof FamilyNode]) =>
-    setNodes(nodes.map((n) => (n.id === selectedId ? { ...n, [field]: value } : n)));
+    setNodes(nodes.map((n) => (n.id === selectedId ? { ...n, [field]: value, updatedAt: Date.now() } : n)));
 
   const handleExport = () => {
     const data = { nodes, edges };

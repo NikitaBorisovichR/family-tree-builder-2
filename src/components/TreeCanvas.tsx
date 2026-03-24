@@ -20,6 +20,7 @@ export interface FamilyNode {
   bio: string;
   historyContext: string;
   createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface Edge {
