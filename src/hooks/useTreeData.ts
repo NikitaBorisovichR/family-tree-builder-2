@@ -6,8 +6,8 @@ import func2url from '../../backend/func2url.json';
 const INITIAL_NODES: FamilyNode[] = [
   {
     id: 'root',
-    x: 400,
-    y: 300,
+    x: 360,
+    y: 280,
     firstName: '',
     lastName: '',
     middleName: '',
@@ -221,17 +221,21 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
     let newY = sourceNode.y;
     const newLastName = sourceNode.lastName;
 
+    // NODE_W=80, gap=20 → horizontal step=100; vertical step=140
+    const STEP_H = 100;
+    const STEP_V = 140;
+
     if (type === 'parent') {
       if (existingParents.length === 0) {
-        newX = sourceNode.x - 110;
-        newY = sourceNode.y - 180;
+        newX = sourceNode.x - STEP_H / 2;
+        newY = sourceNode.y - STEP_V;
       } else {
         const firstParent = existingParents[0];
-        newX = firstParent.x + 220;
+        newX = firstParent.x + STEP_H;
         newY = firstParent.y;
-        // Сдвигаем первого родителя влево, чтобы пара была центрирована над ребёнком
+        // Центрируем пару родителей над ребёнком
         setNodes((prev) => prev.map((n) =>
-          n.id === firstParent.id ? { ...n, x: sourceNode.x - 110 } : n
+          n.id === firstParent.id ? { ...n, x: sourceNode.x - STEP_H / 2 } : n
         ));
       }
     } else if (type === 'child') {
@@ -250,10 +254,10 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
         const rightmostChild = childrenOfFamily.reduce((max, child) => 
           child.x > max.x ? child : max
         );
-        newX = rightmostChild.x + 220;
+        newX = rightmostChild.x + STEP_H;
         newY = rightmostChild.y;
       } else {
-        newY += 180;
+        newY += STEP_V;
       }
     } else if (type === 'sibling') {
       const siblingsOfSource = edges
@@ -268,7 +272,7 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
       const rightmostSibling = allSiblings.reduce((max, sib) => 
         sib.x > max.x ? sib : max
       );
-      newX = rightmostSibling.x + 220;
+      newX = rightmostSibling.x + STEP_H;
       newY = sourceNode.y;
     } else if (type === 'spouse') {
       const existingSpouses = edges
@@ -283,9 +287,9 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
         const rightmostSpouse = existingSpouses.reduce((max, spouse) => 
           spouse.x > max.x ? spouse : max
         );
-        newX = rightmostSpouse.x + 220;
+        newX = rightmostSpouse.x + STEP_H;
       } else {
-        newX += 220;
+        newX += STEP_H;
       }
       newY = sourceNode.y;
     }
