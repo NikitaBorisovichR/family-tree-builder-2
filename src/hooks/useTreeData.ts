@@ -221,9 +221,9 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
     let newY = sourceNode.y;
     const newLastName = sourceNode.lastName;
 
-    // NODE_W=130, gap=30 → horizontal step=160; vertical step=160
+    // NODE_W=120, gap=40 → horizontal step=160; vertical step=200
     const STEP_H = 160;
-    const STEP_V = 160;
+    const STEP_V = 200;
 
     if (type === 'parent') {
       if (existingParents.length === 0) {

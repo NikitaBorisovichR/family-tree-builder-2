@@ -150,69 +150,67 @@ export default function TreeCanvas({
                     const s = nodes.find((n) => n.id === edge.source);
                     const t = nodes.find((n) => n.id === edge.target);
                     if (!s || !t) return null;
-                    // NODE_W=130, середина карточки ~55px сверху (аватар), низ ~130px
-                    const NW = 130;
-                    const NODE_MID_Y = 55;
-                    const NODE_BOTTOM = 130;
+                    // NODE_W=120, аватар центр ~60px, низ карточки ~170px
+                    const NW = 120;
+                    const AVATAR_CY = 60;
+                    const NODE_BOTTOM = 170;
                     const isSpouse = edge.type === 'spouse';
                     const isHorizontal = isSpouse || Math.abs(s.y - t.y) < 80;
+                    const lineColor = '#b0bec5';
+                    const lineW = 1.5;
 
                     if (isHorizontal) {
+                      // горизонтальная линия между супругами — на уровне аватара
                       const leftNode = s.x < t.x ? s : t;
                       const rightNode = s.x < t.x ? t : s;
-                      const sy = leftNode.y + NODE_MID_Y;
-                      const ey = rightNode.y + NODE_MID_Y;
+                      const y = leftNode.y + AVATAR_CY;
                       const sx = leftNode.x + NW;
                       const ex = rightNode.x;
-                      const mx = (sx + ex) / 2;
                       return (
-                        <g key={edge.id}>
-                          <path
-                            d={`M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`}
-                            fill="none"
-                            stroke={isSpouse ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
-                            strokeWidth={isSpouse ? 2 : 1.5}
-                            strokeDasharray={isSpouse ? '6,3' : undefined}
-                            opacity="0.6"
-                          />
-                          {isSpouse && (
-                            <circle cx={mx} cy={(sy + ey) / 2} r="3" fill="hsl(var(--primary))" opacity="0.5" />
-                          )}
-                        </g>
+                        <line key={edge.id} x1={sx} y1={y} x2={ex} y2={y}
+                          stroke={lineColor} strokeWidth={lineW} />
                       );
                     } else {
-                      // parent → child вертикаль
-                      const sx = s.x + NW / 2;
-                      const sy = s.y + NODE_BOTTOM;
-                      const ex = t.x + NW / 2;
-                      const ey = t.y;
-                      const my = (sy + ey) / 2;
+                      // родитель → ребёнок: вниз из центра родителя, потом горизонталь, потом вверх к ребёнку
+                      const px = s.x + NW / 2;
+                      const py = s.y + NODE_BOTTOM;
+                      const cx2 = t.x + NW / 2;
+                      const cy2 = t.y;
+                      const midY = (py + cy2) / 2;
                       return (
-                        <path
-                          key={edge.id}
-                          d={`M ${sx} ${sy} C ${sx} ${my}, ${ex} ${my}, ${ex} ${ey}`}
-                          fill="none"
-                          stroke="hsl(var(--muted-foreground))"
-                          strokeWidth="1.5"
-                          opacity="0.5"
-                        />
+                        <path key={edge.id}
+                          d={`M ${px} ${py} L ${px} ${midY} L ${cx2} ${midY} L ${cx2} ${cy2}`}
+                          fill="none" stroke={lineColor} strokeWidth={lineW} />
                       );
                     }
                   })}
                 </svg>
                 {nodes.map((node) => {
                   const isMale = node.gender === 'male';
-                  const avatarBg = isMale ? 'bg-blue-100' : 'bg-pink-100';
-                  const avatarIcon = isMale ? 'text-blue-500' : 'text-pink-500';
-                  const accentColor = isMale ? 'bg-blue-400' : 'bg-pink-400';
                   const selected = selectedId === node.id;
                   const menuOpen = activeMenu === node.id;
-                  const fullName = [node.lastName, node.firstName, node.middleName].filter(Boolean).join(' ');
-                  const birthYear = node.birthDate ? node.birthDate.replace(/.*(\d{4}).*/, '$1') || node.birthDate : null;
-                  const deathYear = node.deathDate ? node.deathDate.replace(/.*(\d{4}).*/, '$1') || node.deathDate : null;
-                  const years = birthYear
-                    ? node.isAlive ? `р. ${birthYear}` : `${birthYear} – ${deathYear || '...'}`
-                    : null;
+
+                  const avatarBg = isMale ? 'bg-[#dce8f5]' : 'bg-[#f5dce8]';
+                  const avatarIcon = isMale ? 'text-[#6baed6]' : 'text-[#d6748b]';
+                  const avatarRing = isMale
+                    ? selected ? 'ring-4 ring-blue-400' : 'ring-2 ring-[#6baed6]/40'
+                    : selected ? 'ring-4 ring-pink-400' : 'ring-2 ring-[#d6748b]/40';
+                  const badgeBg = isMale ? 'bg-[#4caf50]' : 'bg-[#e91e63]';
+
+                  const relationLabel: Record<string, string> = {
+                    self: 'Я',
+                    parent: isMale ? 'Отец' : 'Мать',
+                    child: isMale ? 'Сын' : 'Дочь',
+                    sibling: isMale ? 'Брат' : 'Сестра',
+                    spouse: isMale ? 'Муж' : 'Жена',
+                  };
+                  const badge = relationLabel[node.relation] || node.relation;
+
+                  const lastName = node.lastName || '';
+                  const firstName = [node.firstName, node.middleName].filter(Boolean).join(' ');
+                  const maiden = node.maidenName ? `(${node.maidenName})` : '';
+                  const dates = [node.birthDate, node.isAlive ? null : (node.deathDate || '...')].filter(Boolean).join('—');
+                  const place = node.birthPlace || '';
 
                   return (
                     <div
@@ -221,7 +219,7 @@ export default function TreeCanvas({
                       style={{
                         left: node.x,
                         top: node.y,
-                        width: 130,
+                        width: 120,
                         zIndex: selected ? 50 : menuOpen ? 60 : 10,
                         cursor: 'grab'
                       }}
@@ -235,47 +233,49 @@ export default function TreeCanvas({
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {/* Карточка */}
-                      <div
-                        className={`select-none bg-white rounded-2xl shadow-md overflow-hidden transition-all ${
-                          selected
-                            ? 'ring-2 ring-primary shadow-xl scale-105'
-                            : 'hover:shadow-lg hover:scale-[1.02]'
-                        }`}
-                      >
-                        {/* Цветная шапка с аватаром */}
-                        <div className={`${accentColor} h-1.5 w-full`} />
-                        <div className="px-3 pt-3 pb-2.5 flex flex-col items-center gap-2">
-                          {/* Аватар */}
-                          <div className={`w-12 h-12 rounded-full ${avatarBg} ${avatarIcon} flex items-center justify-center shrink-0 ring-2 ring-white shadow`}>
-                            <Icon name="User" size={24} />
+                      <div className="flex flex-col items-center select-none">
+                        {/* Аватар */}
+                        <div className="relative">
+                          <div
+                            className={`w-[90px] h-[90px] rounded-full ${avatarBg} ${avatarIcon} ${avatarRing} flex items-center justify-center shadow-md transition-all ${
+                              selected ? 'scale-105' : 'hover:scale-[1.03]'
+                            }`}
+                          >
+                            <Icon name={isMale ? 'User' : 'User'} size={46} />
                           </div>
-                          {/* Имя */}
-                          <div className="text-center w-full">
-                            <p className="text-[11px] font-bold text-foreground leading-tight line-clamp-2">
-                              {fullName || <span className="text-muted-foreground italic">Не заполнено</span>}
+                          {/* Бейдж роли */}
+                          <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${badgeBg} text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow`}>
+                            {badge}
+                          </div>
+                        </div>
+
+                        {/* Имя и детали */}
+                        <div className="mt-4 text-center w-full">
+                          {lastName && (
+                            <p className="text-[11px] font-bold text-foreground leading-tight">
+                              {lastName}{maiden ? ` ${maiden}` : ''}
                             </p>
-                            {node.maidenName && (
-                              <p className="text-[9px] text-muted-foreground mt-0.5">({node.maidenName})</p>
-                            )}
-                          </div>
-                          {/* Даты и профессия */}
-                          {(years || node.occupation) && (
-                            <div className="w-full border-t border-border/50 pt-1.5 flex flex-col gap-0.5">
-                              {years && (
-                                <p className="text-[10px] text-muted-foreground text-center">{years}</p>
-                              )}
-                              {node.occupation && (
-                                <p className="text-[9px] text-muted-foreground/80 text-center truncate">{node.occupation}</p>
-                              )}
-                            </div>
+                          )}
+                          {firstName && (
+                            <p className="text-[11px] font-semibold text-foreground leading-tight">
+                              {firstName}
+                            </p>
+                          )}
+                          {!lastName && !firstName && (
+                            <p className="text-[10px] text-muted-foreground italic">Не заполнено</p>
+                          )}
+                          {place && (
+                            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{place}</p>
+                          )}
+                          {dates && (
+                            <p className="text-[9px] text-muted-foreground leading-tight">{dates}</p>
                           )}
                         </div>
                       </div>
 
                       {/* Кнопка + */}
                       <div
-                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        className="mt-1 relative flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
