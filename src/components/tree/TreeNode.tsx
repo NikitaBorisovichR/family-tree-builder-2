@@ -201,6 +201,7 @@ export default function TreeNode({
 
   return (
     <div
+      className="group"
       style={{
         position: 'absolute',
         left: pos.x,
@@ -236,13 +237,14 @@ export default function TreeNode({
         </div>
       </div>
 
-      {/* Кнопка + — всегда видима */}
+      {/* Кнопка + — появляется при наведении */}
       <div
         style={{ position: 'relative', display: 'flex', justifyContent: 'center', marginTop: 6 }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           title="Добавить родственника"
+          className={`transition-opacity duration-150 ${menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           style={{
             width: 24, height: 24, borderRadius: '50%',
             background: '#1a1a1a', color: '#fff',
