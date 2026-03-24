@@ -239,19 +239,37 @@ export function calculateLevel(achievements: Achievement[]): { level: number; cu
   return { level, currentXP, nextLevelXP };
 }
 
+function formatTimeAgo(timestamp: number): string {
+  if (!timestamp) return '';
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return 'только что';
+  if (minutes < 60) return `${minutes} мин. назад`;
+  if (hours < 24) return `${hours} ч. назад`;
+  if (days === 1) return '1 день назад';
+  if (days < 30) return `${days} дн. назад`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return '1 месяц назад';
+  if (months < 12) return `${months} мес. назад`;
+  return `${Math.floor(months / 12)} г. назад`;
+}
+
 export function getRecentActivity(nodes: FamilyNode[]): RecentActivity[] {
   const activities: RecentActivity[] = [];
   
   const sortedNodes = [...nodes].sort((a, b) => {
-    const aTime = (a as any).createdAt || 0;
-    const bTime = (b as any).createdAt || 0;
+    const aTime = (a as unknown as { createdAt?: number }).createdAt || 0;
+    const bTime = (b as unknown as { createdAt?: number }).createdAt || 0;
     return bTime - aTime;
   }).slice(0, 4);
   
-  sortedNodes.forEach((node, index) => {
-    const timeAgo = index === 0 ? '2 часа назад' : 
-                    index === 1 ? '5 часов назад' : 
-                    index === 2 ? '1 день назад' : '2 дня назад';
+  sortedNodes.forEach((node) => {
+    const createdAt = (node as unknown as { createdAt?: number }).createdAt || 0;
+    const timeAgo = formatTimeAgo(createdAt);
     
     if (node.bio && node.bio.length > 50) {
       activities.push({
