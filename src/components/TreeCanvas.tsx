@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Icon from '@/components/ui/icon';
+import { LayoutNode } from '@/hooks/useTreeLayout';
 
 export interface FamilyNode {
   id: string;
@@ -32,6 +33,7 @@ export interface Edge {
 
 interface TreeCanvasProps {
   nodes: FamilyNode[];
+  layoutNodes: LayoutNode[];
   edges: Edge[];
   selectedId: string | null;
   transform: { x: number; y: number; k: number };
@@ -42,10 +44,9 @@ interface TreeCanvasProps {
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: () => void;
-  onNodeDragStart: (e: React.MouseEvent, id: string) => void;
   onSelectNode: (id: string) => void;
   onAddRelative: (sourceId: string, type: string, gender?: 'male' | 'female') => void;
-  lastMousePos: React.MutableRefObject<{ x: number; y: number }>;
+  lastMousePos?: React.MutableRefObject<{ x: number; y: number }>;
 }
 
 export function getFullName(node: FamilyNode | null): string {
@@ -55,6 +56,7 @@ export function getFullName(node: FamilyNode | null): string {
 
 export default function TreeCanvas({
   nodes,
+  layoutNodes,
   edges,
   selectedId,
   transform,
@@ -65,13 +67,14 @@ export default function TreeCanvas({
   onMouseDown,
   onMouseMove,
   onMouseUp,
-  onNodeDragStart,
   onSelectNode,
   onAddRelative,
   lastMousePos
 }: TreeCanvasProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  // Используем layout-координаты вместо node.x/node.y
+  const getPos = (id: string) => layoutNodes.find(l => l.id === id) ?? { x: 0, y: 0 };
 
   return (
     <>
@@ -166,41 +169,33 @@ export default function TreeCanvas({
 
                     // 0. Линии братьев/сестёр без общих родителей (пунктир)
                     siblingEdges.forEach(edge => {
-                      const s = nodes.find(n => n.id === edge.source);
-                      const t = nodes.find(n => n.id === edge.target);
-                      if (!s || !t) return;
-                      const leftNode = s.x <= t.x ? s : t;
-                      const rightNode = s.x <= t.x ? t : s;
-                      const y = leftNode.y + AV_CY;
-                      const x1 = leftNode.x + NW;
-                      const x2 = rightNode.x;
+                      const sPos = getPos(edge.source);
+                      const tPos = getPos(edge.target);
+                      const left = sPos.x <= tPos.x ? sPos : tPos;
+                      const right = sPos.x <= tPos.x ? tPos : sPos;
+                      const y = left.y + AV_CY;
                       paths.push(
-                        <line key={edge.id} x1={x1} y1={y} x2={x2} y2={y}
+                        <line key={edge.id} x1={left.x + NW} y1={y} x2={right.x} y2={y}
                           stroke={lineColor} strokeWidth={lineW} strokeDasharray="4,3" />
                       );
                     });
 
                     // 1. Линии супругов
                     spouseEdges.forEach(edge => {
-                      const s = nodes.find(n => n.id === edge.source);
-                      const t = nodes.find(n => n.id === edge.target);
-                      if (!s || !t) return;
-                      const leftNode = s.x <= t.x ? s : t;
-                      const rightNode = s.x <= t.x ? t : s;
-                      const y = leftNode.y + AV_CY;
-                      const x1 = leftNode.x + NW;
-                      const x2 = rightNode.x;
+                      const sPos = getPos(edge.source);
+                      const tPos = getPos(edge.target);
+                      const left = sPos.x <= tPos.x ? sPos : tPos;
+                      const right = sPos.x <= tPos.x ? tPos : sPos;
+                      const y = left.y + AV_CY;
                       paths.push(
-                        <line key={edge.id} x1={x1} y1={y} x2={x2} y2={y}
+                        <line key={edge.id} x1={left.x + NW} y1={y} x2={right.x} y2={y}
                           stroke={lineColor} strokeWidth={lineW} />
                       );
                     });
 
                     // 2. Линии parent→child
-                    // Группируем детей по паре родителей
-                    const childrenMap = new Map<string, string[]>(); // parentPairKey → [childIds]
+                    const childrenMap = new Map<string, string[]>();
                     parentEdges.forEach(edge => {
-                      // Для каждого ребёнка собираем всех его родителей
                       const childId = edge.target;
                       const allParentsOfChild = parentEdges
                         .filter(e => e.target === childId)
@@ -215,24 +210,22 @@ export default function TreeCanvas({
 
                     childrenMap.forEach((childIds, parentKey) => {
                       const parentIds = parentKey.split(',').filter(Boolean);
-                      const parentNodes = parentIds.map(id => nodes.find(n => n.id === id)).filter(Boolean) as FamilyNode[];
-                      const childNodes = childIds.map(id => nodes.find(n => n.id === id)).filter(Boolean) as FamilyNode[];
-                      if (!parentNodes.length || !childNodes.length) return;
+                      const parentPositions = parentIds.map(id => getPos(id));
+                      const childPositions = childIds.map(id => getPos(id));
+                      if (!parentPositions.length || !childPositions.length) return;
 
-                      // Точка выхода из родителей: если один — низ его аватара; если двое — середина между ними
                       let parentLineX: number;
                       let parentLineY: number;
-                      if (parentNodes.length === 1) {
-                        parentLineX = parentNodes[0].x + CX;
-                        parentLineY = parentNodes[0].y + AV_BOT;
+                      if (parentPositions.length === 1) {
+                        parentLineX = parentPositions[0].x + CX;
+                        parentLineY = parentPositions[0].y + AV_BOT;
                       } else {
-                        const sorted = [...parentNodes].sort((a, b) => a.x - b.x);
+                        const sorted = [...parentPositions].sort((a, b) => a.x - b.x);
                         parentLineX = (sorted[0].x + NW + sorted[1].x) / 2;
-                        parentLineY = sorted[0].y + AV_CY; // на уровне горизонтальной линии супругов
+                        parentLineY = sorted[0].y + AV_CY;
                       }
 
-                      // Точки входа в детей
-                      const childTops = childNodes.map(c => ({ x: c.x + CX, y: c.y }));
+                      const childTops = childPositions.map(c => ({ x: c.x + CX, y: c.y }));
                       const childMinX = Math.min(...childTops.map(c => c.x));
                       const childMaxX = Math.max(...childTops.map(c => c.x));
                       const midY = parentLineY + (childTops[0].y - parentLineY) / 2;
@@ -376,26 +369,20 @@ export default function TreeCanvas({
                   const dates = [node.birthDate, node.isAlive ? null : (node.deathDate || '...')].filter(Boolean).join('—');
                   const place = node.birthPlace || '';
 
+                  const pos = getPos(node.id);
+
                   return (
                     <div
                       key={node.id}
                       className="absolute group"
                       style={{
-                        left: node.x,
-                        top: node.y,
+                        left: pos.x,
+                        top: pos.y,
                         width: 120,
                         zIndex: selected ? 50 : menuOpen ? 60 : 10,
-                        cursor: 'grab'
+                        cursor: 'pointer'
                       }}
-                      onMouseDown={(e) => onNodeDragStart(e, node.id)}
-                      onMouseUp={(e) => {
-                        const startPos = lastMousePos.current;
-                        const dist = Math.sqrt(
-                          Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
-                        );
-                        if (dist < 5) onSelectNode(node.id);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onSelectNode(node.id); }}
                     >
                       <div className="flex flex-col items-center select-none">
                         {/* Аватар */}
@@ -441,8 +428,6 @@ export default function TreeCanvas({
                       <div
                         className="mt-1 relative flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
                         onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
                       >
                         <button
                           title="Добавить родственника"

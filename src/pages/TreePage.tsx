@@ -7,6 +7,7 @@ import TreeCanvas from '@/components/TreeCanvas';
 import PersonInspector from '@/components/PersonInspector';
 import { useTreeData } from '@/hooks/useTreeData';
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
+import { useTreeLayout } from '@/hooks/useTreeLayout';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { isAdmin } from '@/config/admins';
 
@@ -70,10 +71,11 @@ export default function TreePage() {
     setTransform,
     handleWheel,
     handleMouseDown,
-    handleNodeDragStart,
     handleMouseMove,
     handleMouseUp
   } = useCanvasInteraction();
+
+  const layoutNodes = useTreeLayout(nodes, edges);
 
   useKeyboardShortcuts(selectedId, setSelectedId, saveTreeToDatabase, () => navigate('/dashboard'), deleteNode);
 
@@ -193,6 +195,7 @@ export default function TreePage() {
         
         <TreeCanvas
           nodes={nodes}
+          layoutNodes={layoutNodes}
           edges={edges}
           selectedId={selectedId}
           transform={transform}
@@ -201,9 +204,8 @@ export default function TreePage() {
           onSetTransform={setTransform}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
-          onMouseMove={(e) => handleMouseMove(e, nodes, setNodes)}
+          onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onNodeDragStart={handleNodeDragStart}
           onSelectNode={setSelectedId}
           onAddRelative={addRelative}
           lastMousePos={lastMousePos}
