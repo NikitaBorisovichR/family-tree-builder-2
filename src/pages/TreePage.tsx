@@ -207,7 +207,6 @@ export default function TreePage() {
           onMouseUp={handleMouseUp}
           onSelectNode={setSelectedId}
           onAddRelative={addRelative}
-          lastMousePos={lastMousePos}
         />
 
         {mode === 'canvas' && !isReadonly && (
