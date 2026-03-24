@@ -261,17 +261,34 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
 
     if (type === 'sibling') {
       // Берём уникальных родителей source и связываем нового с ними
-      const parentEdges = edges.filter((e) => e.target === sourceId && e.type !== 'spouse');
-      const uniqueParentEdges = parentEdges.filter(
-        (pe, idx, arr) => arr.findIndex((x) => x.source === pe.source) === idx
-      );
-      if (uniqueParentEdges.length > 0) {
-        uniqueParentEdges.forEach((pe) =>
-          newEdgesList.push({ id: `e-${Date.now()}-${pe.source}-${Math.random()}`, source: pe.source, target: newId })
+      const srcParentEdges = edges.filter((e) => e.target === sourceId && !e.type);
+      const uniqueParentIds = [...new Set(srcParentEdges.map(e => e.source))];
+      if (uniqueParentIds.length > 0) {
+        // Есть общие родители — просто подключаем к ним
+        uniqueParentIds.forEach((pid) =>
+          newEdgesList.push({ id: `e-${Date.now()}-${pid}-${Math.random()}`, source: pid, target: newId })
         );
       } else {
-        // Нет общих родителей — создаём прямую «родственную» связь через виртуальный sibling-edge
-        newEdgesList.push({ id: `e-sib-${Date.now()}-${Math.random()}`, source: sourceId, target: newId, type: 'sibling' as never });
+        // Нет родителей — создаём виртуальную пару родителей и связываем обоих детей с ними
+        const dadId = `vp-${Date.now()}-dad`;
+        const momId = `vp-${Date.now()}-mom`;
+        const ts = Date.now();
+        const baseNode = {
+          x: 0, y: 0, firstName: '', lastName: sourceNode.lastName,
+          middleName: '', maidenName: '', birthDate: '', birthPlace: '',
+          deathDate: '', deathPlace: '', occupation: '', relation: 'parent',
+          bio: '', historyContext: '', isAlive: true, createdAt: ts
+        };
+        const dadNode: FamilyNode = { ...baseNode, id: dadId, gender: 'male' };
+        const momNode: FamilyNode = { ...baseNode, id: momId, gender: 'female', updatedAt: ts };
+        setNodes(prev => [...prev, dadNode, momNode]);
+        // spouse между ними
+        newEdgesList.push({ id: `e-sp-${ts}`, source: dadId, target: momId, type: 'spouse' });
+        // оба старых ребёнка подключаются к виртуальным родителям
+        newEdgesList.push({ id: `e-${ts}-d-src`, source: dadId, target: sourceId });
+        newEdgesList.push({ id: `e-${ts}-m-src`, source: momId, target: sourceId });
+        newEdgesList.push({ id: `e-${ts}-d-new`, source: dadId, target: newId });
+        newEdgesList.push({ id: `e-${ts}-m-new`, source: momId, target: newId });
       }
     } else if (type === 'spouse') {
       newEdgesList.push({ id: `e-spouse-${Date.now()}-${Math.random()}`, source: sourceId, target: newId, type: 'spouse' });

@@ -6,152 +6,155 @@ interface TreeEdgesProps {
   getPos: (id: string) => { x: number; y: number };
 }
 
-// Размеры карточки — должны совпадать с TreeNode
-const NW = 120;        // ширина карточки
-const NH = 190;        // высота карточки
-const AV_TOP = 8;      // отступ сверху до аватара
-const AV_R = 45;       // радиус аватара
-const AV_CY = AV_TOP + AV_R;        // 53  — центр аватара по Y
-const AV_BOT = AV_TOP + AV_R * 2;   // 98  — низ аватара
-const CX = NW / 2;                  // 60  — центр карточки по X
+// ── Константы карточки (должны совпадать с TreeNode) ──────────────────────────
+const NW   = 120;  // ширина карточки
+const AV_R = 45;   // радиус аватара
+const AV_T = 8;    // отступ аватара сверху
+const AV_CY = AV_T + AV_R;          // 53 — центр аватара по Y
+const AV_BOT = AV_T + AV_R * 2;     // 98 — низ аватара
+const CX = NW / 2;                  // 60 — горизонтальный центр карточки
 
-const LINE_COLOR = '#b0bec5';
-const LINE_W = 1.5;
+const STROKE = '#b0bec5';
+const SW = 1.5;
 
 export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
-  const parentEdges = edges.filter(e => !e.type);
-  const spouseEdges = edges.filter(e => e.type === 'spouse');
+  const parentEdges  = edges.filter(e => !e.type);
+  const spouseEdges  = edges.filter(e => e.type === 'spouse');
   const siblingEdges = edges.filter(e => e.type === 'sibling');
 
-  const paths: React.ReactNode[] = [];
+  const els: React.ReactNode[] = [];
 
-  // ─── Линии братьев/сестёр (пунктир) ───────────────────────────────────────
+  // ── 1. Линии «sibling» (пунктир, только для редкого случая без родителей) ──
   siblingEdges.forEach(edge => {
-    const sPos = getPos(edge.source);
-    const tPos = getPos(edge.target);
-    const left  = sPos.x <= tPos.x ? sPos : tPos;
-    const right = sPos.x <= tPos.x ? tPos : sPos;
+    const sP = getPos(edge.source);
+    const tP = getPos(edge.target);
+    const left  = sP.x <= tP.x ? sP : tP;
+    const right = sP.x <= tP.x ? tP : sP;
     const y = left.y + AV_CY;
-    paths.push(
+    els.push(
       <line key={edge.id}
         x1={left.x + NW} y1={y} x2={right.x} y2={y}
-        stroke={LINE_COLOR} strokeWidth={LINE_W} strokeDasharray="5,4" />
+        stroke={STROKE} strokeWidth={SW} strokeDasharray="5,4" />
     );
   });
 
-  // ─── Линии супругов ────────────────────────────────────────────────────────
-  // Горизонтальная черта между правым краем левой карточки и левым краем правой
-  // на уровне центра аватара
+  // ── 2. Линии супругов ─────────────────────────────────────────────────────
+  // Горизонтальная черта между карточками на уровне центра аватара
   spouseEdges.forEach(edge => {
-    const sPos = getPos(edge.source);
-    const tPos = getPos(edge.target);
-    const left  = sPos.x <= tPos.x ? sPos : tPos;
-    const right = sPos.x <= tPos.x ? tPos : sPos;
+    const sP = getPos(edge.source);
+    const tP = getPos(edge.target);
+    const left  = sP.x <= tP.x ? sP : tP;
+    const right = sP.x <= tP.x ? tP : sP;
     const y = left.y + AV_CY;
-    paths.push(
+    els.push(
       <line key={edge.id}
         x1={left.x + NW} y1={y} x2={right.x} y2={y}
-        stroke={LINE_COLOR} strokeWidth={LINE_W} />
+        stroke={STROKE} strokeWidth={SW} />
     );
   });
 
-  // ─── Линии родитель → дети ────────────────────────────────────────────────
-  // Группируем детей по набору родителей (сортированный ключ)
-  const childrenMap = new Map<string, string[]>();
+  // ── 3. Линии родитель → дети ──────────────────────────────────────────────
+  // Группируем детей по «ключу родителей» (sorted ids через запятую)
+  // Это позволяет нарисовать одну «расчёску» на группу детей
+
+  const childGroupMap = new Map<string, Set<string>>();
   parentEdges.forEach(edge => {
     const childId = edge.target;
-    const parentsKey = parentEdges
+    // Все родители данного ребёнка
+    const allParents = parentEdges
       .filter(e => e.target === childId)
       .map(e => e.source)
       .sort()
       .join(',');
-    if (!childrenMap.has(parentsKey)) childrenMap.set(parentsKey, []);
-    if (!childrenMap.get(parentsKey)!.includes(childId))
-      childrenMap.get(parentsKey)!.push(childId);
+    if (!childGroupMap.has(allParents)) childGroupMap.set(allParents, new Set());
+    childGroupMap.get(allParents)!.add(childId);
   });
 
-  const rendered = new Set<string>();
+  const renderedGroups = new Set<string>();
 
-  childrenMap.forEach((childIds, parentKey) => {
-    const groupKey = parentKey + '|' + childIds.slice().sort().join(',');
-    if (rendered.has(groupKey)) return;
-    rendered.add(groupKey);
+  childGroupMap.forEach((childSet, parentKey) => {
+    const groupId = parentKey + '|' + [...childSet].sort().join(',');
+    if (renderedGroups.has(groupId)) return;
+    renderedGroups.add(groupId);
 
     const parentIds = parentKey.split(',').filter(Boolean);
-    const parentPositions = parentIds.map(id => getPos(id));
-    const childPositions  = childIds.map(id => getPos(id));
-    if (!parentPositions.length || !childPositions.length) return;
+    const childIds  = [...childSet];
 
-    // Точка выхода от родителей:
-    // • Два родителя рядом (пара): середина горизонтальной линии супругов, Y = центр аватара
-    // • Один родитель: центр низа его аватара
+    const pPositions = parentIds.map(id => getPos(id));
+    const cPositions = childIds.map(id => getPos(id));
+    if (!pPositions.length || !cPositions.length) return;
+
+    // ── Точка выхода от родителей ──────────────────────────────────────────
+    // Два родителя (пара): выход из середины горизонтальной линии супругов,
+    //   Y = уровень центра аватара
+    // Один родитель: выход из низа аватара по центру карточки
     let fromX: number;
     let fromY: number;
 
-    if (parentPositions.length >= 2) {
-      // Сортируем по X — берём крайних левого и правого
-      const sorted = [...parentPositions].sort((a, b) => a.x - b.x);
-      const leftP  = sorted[0];
-      const rightP = sorted[sorted.length - 1];
-      fromX = (leftP.x + NW + rightP.x) / 2;   // середина зазора между ними
-      fromY = leftP.y + AV_CY;                  // уровень центра аватара
+    if (pPositions.length >= 2) {
+      const sorted = [...pPositions].sort((a, b) => a.x - b.x);
+      fromX = (sorted[0].x + NW + sorted[sorted.length - 1].x) / 2;
+      fromY = sorted[0].y + AV_CY;
     } else {
-      fromX = parentPositions[0].x + CX;
-      fromY = parentPositions[0].y + AV_BOT;    // низ аватара единственного родителя
+      fromX = pPositions[0].x + CX;
+      fromY = pPositions[0].y + AV_BOT;
     }
 
-    // Верхушка каждого ребёнка (центр карточки по X, верх карточки по Y)
-    const childTops = childPositions.map(c => ({ x: c.x + CX, y: c.y }));
-    const childMinX = Math.min(...childTops.map(c => c.x));
-    const childMaxX = Math.max(...childTops.map(c => c.x));
-    const childTopY = childTops[0].y; // все дети на одном Y (одно поколение)
+    // ── Верхушки детей (центр по X, верхний Y карточки) ───────────────────
+    const tops = cPositions.map(c => ({ x: c.x + CX, y: c.y }));
+    const topY = tops[0].y; // все дети на одном Y-уровне
 
-    // Горизонтальная «шина» — на полпути между fromY и верхом детей
-    const busY = fromY + (childTopY - fromY) / 2;
+    // Горизонтальная «шина» — ровно посередине по вертикали
+    const busY = fromY + (topY - fromY) / 2;
 
     if (childIds.length === 1) {
-      // Один ребёнок — просто ломаная: вниз → по горизонтали → вниз
-      const cx = childTops[0].x;
-      const cy = childTops[0].y;
-      if (Math.abs(fromX - cx) < 1) {
-        // Точно под родителем — просто прямая
-        paths.push(
-          <line key={`pc-${groupKey}`}
+      // ── Один ребёнок ───────────────────────────────────────────────────
+      const cx = tops[0].x;
+      const cy = tops[0].y;
+
+      if (Math.abs(fromX - cx) < 2) {
+        // Строго под родителями — прямая вертикаль
+        els.push(
+          <line key={`v-${groupId}`}
             x1={fromX} y1={fromY} x2={cx} y2={cy}
-            stroke={LINE_COLOR} strokeWidth={LINE_W} />
+            stroke={STROKE} strokeWidth={SW} />
         );
       } else {
-        paths.push(
-          <polyline key={`pc-${groupKey}`}
+        // Ступенчатая ломаная: вниз → вправо/влево → вниз
+        els.push(
+          <polyline key={`step-${groupId}`}
             points={`${fromX},${fromY} ${fromX},${busY} ${cx},${busY} ${cx},${cy}`}
-            fill="none" stroke={LINE_COLOR} strokeWidth={LINE_W} />
+            fill="none" stroke={STROKE} strokeWidth={SW} />
         );
       }
     } else {
-      // Несколько детей — классическая «расчёска»:
-      // 1) вертикаль от родителя вниз до busY
-      paths.push(
-        <line key={`pv-${groupKey}`}
+      // ── Несколько детей («расчёска») ───────────────────────────────────
+      const minChildX = Math.min(...tops.map(t => t.x));
+      const maxChildX = Math.max(...tops.map(t => t.x));
+
+      // Вертикаль от родителей вниз до шины
+      els.push(
+        <line key={`down-${groupId}`}
           x1={fromX} y1={fromY} x2={fromX} y2={busY}
-          stroke={LINE_COLOR} strokeWidth={LINE_W} />
+          stroke={STROKE} strokeWidth={SW} />
       );
 
-      // 2) горизонтальная шина от крайнего левого до крайнего правого ребёнка
-      //    (и до fromX если родитель выходит за эти пределы)
-      const busMinX = Math.min(childMinX, fromX);
-      const busMaxX = Math.max(childMaxX, fromX);
-      paths.push(
-        <line key={`ph-${groupKey}`}
-          x1={busMinX} y1={busY} x2={busMaxX} y2={busY}
-          stroke={LINE_COLOR} strokeWidth={LINE_W} />
+      // Горизонтальная шина — от крайнего левого до крайнего правого ребёнка
+      // (расширяем до fromX если родитель выходит за пределы)
+      const busX1 = Math.min(minChildX, fromX);
+      const busX2 = Math.max(maxChildX, fromX);
+      els.push(
+        <line key={`bus-${groupId}`}
+          x1={busX1} y1={busY} x2={busX2} y2={busY}
+          stroke={STROKE} strokeWidth={SW} />
       );
 
-      // 3) вертикали от шины до верха каждого ребёнка
-      childTops.forEach((ct, i) => {
-        paths.push(
-          <line key={`pch-${groupKey}-${i}`}
-            x1={ct.x} y1={busY} x2={ct.x} y2={ct.y}
-            stroke={LINE_COLOR} strokeWidth={LINE_W} />
+      // Вертикали от шины к каждому ребёнку
+      tops.forEach((t, i) => {
+        els.push(
+          <line key={`child-${groupId}-${i}`}
+            x1={t.x} y1={busY} x2={t.x} y2={t.y}
+            stroke={STROKE} strokeWidth={SW} />
         );
       });
     }
@@ -160,11 +163,9 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
   return (
     <svg
       className="absolute top-0 left-0 pointer-events-none overflow-visible"
-      style={{ width: 5000, height: 5000 }}
+      style={{ width: 8000, height: 8000 }}
     >
-      {paths}
+      {els}
     </svg>
   );
 }
-
-export type { };
