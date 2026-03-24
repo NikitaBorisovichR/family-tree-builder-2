@@ -1,3 +1,4 @@
+// TreePage — страница дерева
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
@@ -54,7 +55,6 @@ export default function TreePage() {
     selectedNode,
     parents,
     fileInputRef,
-    setNodes,
     setSelectedId,
     setMode,
     addRelative,
