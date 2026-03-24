@@ -223,12 +223,16 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
 
     if (type === 'parent') {
       if (existingParents.length === 0) {
-        newX -= 110;
-        newY -= 180;
+        newX = sourceNode.x - 110;
+        newY = sourceNode.y - 180;
       } else {
         const firstParent = existingParents[0];
         newX = firstParent.x + 220;
         newY = firstParent.y;
+        // Сдвигаем первого родителя влево, чтобы пара была центрирована над ребёнком
+        setNodes((prev) => prev.map((n) =>
+          n.id === firstParent.id ? { ...n, x: sourceNode.x - 110 } : n
+        ));
       }
     } else if (type === 'child') {
       const spouseEdges = edges.filter((e) => e.type === 'spouse' && (e.source === sourceId || e.target === sourceId));
@@ -286,7 +290,16 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
       newY = sourceNode.y;
     }
 
-    const newGender: 'male' | 'female' = gender || sourceNode.gender;
+    let newGender: 'male' | 'female' = gender || sourceNode.gender;
+    if (type === 'parent' && !gender) {
+      if (existingParents.length === 1) {
+        newGender = existingParents[0].gender === 'male' ? 'female' : 'male';
+      } else {
+        newGender = 'male';
+      }
+    } else if (type === 'spouse' && !gender) {
+      newGender = sourceNode.gender === 'male' ? 'female' : 'male';
+    }
 
     const newNode: FamilyNode = {
       id: newId,
@@ -315,8 +328,11 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
 
     if (type === 'sibling') {
       const parentEdges = edges.filter((e) => e.target === sourceId && e.type !== 'spouse');
-      if (parentEdges.length > 0) {
-        parentEdges.forEach((pe) =>
+      const uniqueParentEdges = parentEdges.filter(
+        (pe, idx, arr) => arr.findIndex((x) => x.source === pe.source) === idx
+      );
+      if (uniqueParentEdges.length > 0) {
+        uniqueParentEdges.forEach((pe) =>
           newEdgesList.push({ id: `e-${Date.now()}-${pe.source}-${Math.random()}`, source: pe.source, target: newId })
         );
       }
