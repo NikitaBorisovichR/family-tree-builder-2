@@ -27,7 +27,7 @@ export interface Edge {
   id: string;
   source: string;
   target: string;
-  type?: 'spouse';
+  type?: 'spouse' | 'sibling';
 }
 
 interface TreeCanvasProps {
@@ -146,44 +146,150 @@ export default function TreeCanvas({
                       <circle cx="3" cy="3" r="1.5" fill="hsl(var(--muted-foreground))" opacity="0.5" />
                     </marker>
                   </defs>
-                  {edges.map((edge) => {
-                    const s = nodes.find((n) => n.id === edge.source);
-                    const t = nodes.find((n) => n.id === edge.target);
-                    if (!s || !t) return null;
-                    // NODE_W=120, аватар центр ~60px, низ карточки ~170px
-                    const NW = 120;
-                    const AVATAR_CY = 60;
-                    const NODE_BOTTOM = 170;
-                    const isSpouse = edge.type === 'spouse';
-                    const isHorizontal = isSpouse || Math.abs(s.y - t.y) < 80;
-                    const lineColor = '#b0bec5';
+                  {(() => {
+                    // Размеры карточки: ширина=120, аватар 90px центр на y+45, низ аватара y+90, верх карточки y
+                    const NW = 120;        // ширина карточки
+                    const CX = NW / 2;    // центр по X = 60
+                    const AV_TOP = 8;     // отступ аватара сверху карточки
+                    const AV_R = 45;      // радиус аватара
+                    const AV_CY = AV_TOP + AV_R;   // центр аватара Y = 53
+                    const AV_BOT = AV_TOP + AV_R * 2; // низ аватара = 98
+                    const lineColor = '#90a4ae';
                     const lineW = 1.5;
 
-                    if (isHorizontal) {
-                      // горизонтальная линия между супругами — на уровне аватара
-                      const leftNode = s.x < t.x ? s : t;
-                      const rightNode = s.x < t.x ? t : s;
-                      const y = leftNode.y + AVATAR_CY;
-                      const sx = leftNode.x + NW;
-                      const ex = rightNode.x;
-                      return (
-                        <line key={edge.id} x1={sx} y1={y} x2={ex} y2={y}
+                    const parentEdges = edges.filter(e => !e.type);
+                    const spouseEdges = edges.filter(e => e.type === 'spouse');
+                    const siblingEdges = edges.filter(e => e.type === 'sibling');
+
+                    const rendered = new Set<string>();
+                    const paths: React.ReactNode[] = [];
+
+                    // 0. Линии братьев/сестёр без общих родителей (пунктир)
+                    siblingEdges.forEach(edge => {
+                      const s = nodes.find(n => n.id === edge.source);
+                      const t = nodes.find(n => n.id === edge.target);
+                      if (!s || !t) return;
+                      const leftNode = s.x <= t.x ? s : t;
+                      const rightNode = s.x <= t.x ? t : s;
+                      const y = leftNode.y + AV_CY;
+                      const x1 = leftNode.x + NW;
+                      const x2 = rightNode.x;
+                      paths.push(
+                        <line key={edge.id} x1={x1} y1={y} x2={x2} y2={y}
+                          stroke={lineColor} strokeWidth={lineW} strokeDasharray="4,3" />
+                      );
+                    });
+
+                    // 1. Линии супругов
+                    spouseEdges.forEach(edge => {
+                      const s = nodes.find(n => n.id === edge.source);
+                      const t = nodes.find(n => n.id === edge.target);
+                      if (!s || !t) return;
+                      const leftNode = s.x <= t.x ? s : t;
+                      const rightNode = s.x <= t.x ? t : s;
+                      const y = leftNode.y + AV_CY;
+                      const x1 = leftNode.x + NW;
+                      const x2 = rightNode.x;
+                      paths.push(
+                        <line key={edge.id} x1={x1} y1={y} x2={x2} y2={y}
                           stroke={lineColor} strokeWidth={lineW} />
                       );
-                    } else {
-                      // родитель → ребёнок: вниз из центра родителя, потом горизонталь, потом вверх к ребёнку
-                      const px = s.x + NW / 2;
-                      const py = s.y + NODE_BOTTOM;
-                      const cx2 = t.x + NW / 2;
-                      const cy2 = t.y;
-                      const midY = (py + cy2) / 2;
-                      return (
-                        <path key={edge.id}
-                          d={`M ${px} ${py} L ${px} ${midY} L ${cx2} ${midY} L ${cx2} ${cy2}`}
-                          fill="none" stroke={lineColor} strokeWidth={lineW} />
-                      );
-                    }
-                  })}
+                    });
+
+                    // 2. Линии parent→child
+                    // Группируем детей по паре родителей
+                    const childrenMap = new Map<string, string[]>(); // parentPairKey → [childIds]
+                    parentEdges.forEach(edge => {
+                      // Для каждого ребёнка собираем всех его родителей
+                      const childId = edge.target;
+                      const allParentsOfChild = parentEdges
+                        .filter(e => e.target === childId)
+                        .map(e => e.source)
+                        .sort()
+                        .join(',');
+                      if (!childrenMap.has(allParentsOfChild)) childrenMap.set(allParentsOfChild, []);
+                      if (!childrenMap.get(allParentsOfChild)!.includes(childId)) {
+                        childrenMap.get(allParentsOfChild)!.push(childId);
+                      }
+                    });
+
+                    childrenMap.forEach((childIds, parentKey) => {
+                      const parentIds = parentKey.split(',').filter(Boolean);
+                      const parentNodes = parentIds.map(id => nodes.find(n => n.id === id)).filter(Boolean) as FamilyNode[];
+                      const childNodes = childIds.map(id => nodes.find(n => n.id === id)).filter(Boolean) as FamilyNode[];
+                      if (!parentNodes.length || !childNodes.length) return;
+
+                      // Точка выхода из родителей: если один — низ его аватара; если двое — середина между ними
+                      let parentLineX: number;
+                      let parentLineY: number;
+                      if (parentNodes.length === 1) {
+                        parentLineX = parentNodes[0].x + CX;
+                        parentLineY = parentNodes[0].y + AV_BOT;
+                      } else {
+                        const sorted = [...parentNodes].sort((a, b) => a.x - b.x);
+                        parentLineX = (sorted[0].x + NW + sorted[1].x) / 2;
+                        parentLineY = sorted[0].y + AV_CY; // на уровне горизонтальной линии супругов
+                      }
+
+                      // Точки входа в детей
+                      const childTops = childNodes.map(c => ({ x: c.x + CX, y: c.y }));
+                      const childMinX = Math.min(...childTops.map(c => c.x));
+                      const childMaxX = Math.max(...childTops.map(c => c.x));
+                      const midY = parentLineY + (childTops[0].y - parentLineY) / 2;
+
+                      const groupKey = parentKey + childIds.join(',');
+                      if (rendered.has(groupKey)) return;
+                      rendered.add(groupKey);
+
+                      if (childNodes.length === 1) {
+                        // Один ребёнок — прямая Г-линия
+                        const cx = childTops[0].x;
+                        const cy = childTops[0].y;
+                        paths.push(
+                          <path key={`pc-${groupKey}`}
+                            d={`M ${parentLineX} ${parentLineY} L ${parentLineX} ${midY} L ${cx} ${midY} L ${cx} ${cy}`}
+                            fill="none" stroke={lineColor} strokeWidth={lineW} />
+                        );
+                      } else {
+                        // Несколько детей — «гребёнка»
+                        // Вертикаль вниз от родителя до midY
+                        paths.push(
+                          <line key={`pv-${groupKey}`}
+                            x1={parentLineX} y1={parentLineY}
+                            x2={parentLineX} y2={midY}
+                            stroke={lineColor} strokeWidth={lineW} />
+                        );
+                        // Горизонталь на уровне midY
+                        paths.push(
+                          <line key={`ph-${groupKey}`}
+                            x1={childMinX} y1={midY}
+                            x2={childMaxX} y2={midY}
+                            stroke={lineColor} strokeWidth={lineW} />
+                        );
+                        // Вертикали вниз к каждому ребёнку
+                        childTops.forEach((ct, i) => {
+                          paths.push(
+                            <line key={`pch-${groupKey}-${i}`}
+                              x1={ct.x} y1={midY}
+                              x2={ct.x} y2={ct.y}
+                              stroke={lineColor} strokeWidth={lineW} />
+                          );
+                        });
+                        // Соединяем parentLineX с горизонталью
+                        if (parentLineX < childMinX || parentLineX > childMaxX) {
+                          const clampX = Math.max(childMinX, Math.min(childMaxX, parentLineX));
+                          paths.push(
+                            <line key={`pcon-${groupKey}`}
+                              x1={parentLineX} y1={midY}
+                              x2={clampX} y2={midY}
+                              stroke={lineColor} strokeWidth={lineW} />
+                          );
+                        }
+                      }
+                    });
+
+                    return paths;
+                  })()}
                 </svg>
                 {nodes.map((node) => {
                   const isMale = node.gender === 'male';

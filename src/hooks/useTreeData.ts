@@ -331,6 +331,7 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
     const newEdgesList: Edge[] = [];
 
     if (type === 'sibling') {
+      // Берём уникальных родителей source и связываем нового с ними
       const parentEdges = edges.filter((e) => e.target === sourceId && e.type !== 'spouse');
       const uniqueParentEdges = parentEdges.filter(
         (pe, idx, arr) => arr.findIndex((x) => x.source === pe.source) === idx
@@ -339,6 +340,9 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
         uniqueParentEdges.forEach((pe) =>
           newEdgesList.push({ id: `e-${Date.now()}-${pe.source}-${Math.random()}`, source: pe.source, target: newId })
         );
+      } else {
+        // Нет общих родителей — создаём прямую «родственную» связь через виртуальный sibling-edge
+        newEdgesList.push({ id: `e-sib-${Date.now()}-${Math.random()}`, source: sourceId, target: newId, type: 'sibling' as never });
       }
     } else if (type === 'spouse') {
       newEdgesList.push({ id: `e-spouse-${Date.now()}-${Math.random()}`, source: sourceId, target: newId, type: 'spouse' });
@@ -348,15 +352,19 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
         source: sourceId,
         target: newId
       });
-
+      // Если у source есть супруг — связываем и его с ребёнком
       const spouseEdges = edges.filter((e) => e.type === 'spouse' && (e.source === sourceId || e.target === sourceId));
       if (spouseEdges.length > 0) {
         const spouseId = spouseEdges[0].source === sourceId ? spouseEdges[0].target : spouseEdges[0].source;
-        newEdgesList.push({
-          id: `e-${Date.now()}-${Math.random()}-spouse`,
-          source: spouseId,
-          target: newId
-        });
+        // Проверяем что такой связи ещё нет
+        const alreadyLinked = edges.some(e => e.source === spouseId && e.target === newId);
+        if (!alreadyLinked) {
+          newEdgesList.push({
+            id: `e-${Date.now()}-${Math.random()}-sp`,
+            source: spouseId,
+            target: newId
+          });
+        }
       }
     } else if (type === 'parent') {
       newEdgesList.push({
@@ -364,10 +372,17 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
         source: newId,
         target: sourceId
       });
-
+      // Если уже есть первый родитель — создаём spouse-edge между ними
       if (existingParents.length > 0) {
-        const spouseId = existingParents[0].id;
-        newEdgesList.push({ id: `e-spouse-${Date.now()}-${Math.random()}`, source: spouseId, target: newId, type: 'spouse' });
+        const partnerId = existingParents[0].id;
+        // Проверяем что spouse-edge ещё нет
+        const spouseAlreadyExists = edges.some(e =>
+          e.type === 'spouse' &&
+          ((e.source === partnerId && e.target === newId) || (e.source === newId && e.target === partnerId))
+        );
+        if (!spouseAlreadyExists) {
+          newEdgesList.push({ id: `e-spouse-${Date.now()}-${Math.random()}`, source: partnerId, target: newId, type: 'spouse' });
+        }
       }
     }
 
