@@ -14,30 +14,6 @@ interface TreeNodeProps {
   onAddRelative: (sourceId: string, type: string, gender?: 'male' | 'female') => void;
 }
 
-function getGeneration(nodeId: string, edges: Edge[]): number {
-  const visited = new Set<string>();
-  const queue: Array<{ id: string; gen: number }> = [{ id: 'root', gen: 0 }];
-  while (queue.length > 0) {
-    const { id, gen } = queue.shift()!;
-    if (id === nodeId) return gen;
-    if (visited.has(id)) continue;
-    visited.add(id);
-    // родители (source→target = родитель→ребёнок): идём вверх +1
-    edges.filter(e => e.target === id && !e.type)
-      .forEach(e => { if (!visited.has(e.source)) queue.push({ id: e.source, gen: gen + 1 }); });
-    // дети: идём вниз -1
-    edges.filter(e => e.source === id && !e.type)
-      .forEach(e => { if (!visited.has(e.target)) queue.push({ id: e.target, gen: gen - 1 }); });
-    // супруги: то же поколение (позволяет добраться до их родственников)
-    edges.filter(e => e.type === 'spouse' && (e.source === id || e.target === id))
-      .forEach(e => {
-        const spId = e.source === id ? e.target : e.source;
-        if (!visited.has(spId)) queue.push({ id: spId, gen });
-      });
-  }
-  return 0;
-}
-
 // Ищем кратчайший путь от root до nodeId.
 // Возвращаем массив шагов: { id, via: 'parent'|'child'|'spouse' }
 // parent = идём к родителю, child = идём к ребёнку, spouse = идём к супругу
