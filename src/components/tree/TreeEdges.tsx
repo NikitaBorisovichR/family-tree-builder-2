@@ -94,7 +94,7 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
     if (pPositions.length >= 2) {
       const sorted = [...pPositions].sort((a, b) => a.x - b.x);
       fromX = (sorted[0].x + NW + sorted[sorted.length - 1].x) / 2;
-      fromY = sorted[0].y + AV_CY;
+      fromY = sorted[0].y + AV_BOT; // выход из нижней точки аватара, а не центра
     } else {
       fromX = pPositions[0].x + CX;
       fromY = pPositions[0].y + AV_BOT;
