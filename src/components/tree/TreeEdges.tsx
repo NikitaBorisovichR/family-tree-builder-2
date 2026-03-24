@@ -72,8 +72,24 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
 
   const renderedGroups = new Set<string>();
 
+  // Назначаем каждой уникальной группе (fromY → topY) свой индекс,
+  // чтобы смещать busY и не допускать наложения шин
+  const busYIndexMap = new Map<string, number>();
+  const getBusYIndex = (fromY: number, topY: number): number => {
+    const key = `${Math.round(fromY)}-${Math.round(topY)}`;
+    const idx = busYIndexMap.has(key) ? busYIndexMap.get(key)! + 1 : 0;
+    busYIndexMap.set(key, idx);
+    return idx;
+  };
+
+  // Сначала собираем все группы в массив, чтобы знать порядок
+  const groups: Array<{ groupId: string; parentKey: string; childSet: Set<string> }> = [];
   childGroupMap.forEach((childSet, parentKey) => {
     const groupId = parentKey + '|' + [...childSet].sort().join(',');
+    groups.push({ groupId, parentKey, childSet });
+  });
+
+  groups.forEach(({ groupId, parentKey, childSet }) => {
     if (renderedGroups.has(groupId)) return;
     renderedGroups.add(groupId);
 
@@ -104,8 +120,12 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
     const tops = cPositions.map(c => ({ x: c.x + CX, y: c.y }));
     const topY = tops[0].y; // все дети на одном Y-уровне
 
-    // Горизонтальная «шина» — ровно посередине по вертикали
-    const busY = fromY + (topY - fromY) / 2;
+    // Горизонтальная «шина» — смещаем каждую группу чуть по-разному,
+    // чтобы шины разных семей не совпадали по высоте
+    const BUS_STEP = 12; // px между шинами соседних групп
+    const busIdx = getBusYIndex(fromY, topY);
+    const baseBusY = fromY + (topY - fromY) / 2;
+    const busY = baseBusY + (busIdx % 2 === 0 ? -busIdx / 2 : Math.ceil(busIdx / 2)) * BUS_STEP;
 
     if (childIds.length === 1) {
       // ── Один ребёнок ───────────────────────────────────────────────────
