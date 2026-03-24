@@ -195,16 +195,61 @@ export default function TreeCanvas({
                   const avatarRing = isMale
                     ? selected ? 'ring-4 ring-blue-400' : 'ring-2 ring-[#6baed6]/40'
                     : selected ? 'ring-4 ring-pink-400' : 'ring-2 ring-[#d6748b]/40';
-                  const badgeBg = isMale ? 'bg-[#4caf50]' : 'bg-[#e91e63]';
 
-                  const relationLabel: Record<string, string> = {
-                    self: 'Я',
-                    parent: isMale ? 'Отец' : 'Мать',
-                    child: isMale ? 'Сын' : 'Дочь',
-                    sibling: isMale ? 'Брат' : 'Сестра',
-                    spouse: isMale ? 'Муж' : 'Жена',
+                  // Вычисляем поколение узла относительно root (через parent-edges)
+                  const getGeneration = (nodeId: string): number => {
+                    const visited = new Set<string>();
+                    const queue: Array<{ id: string; gen: number }> = [{ id: 'root', gen: 0 }];
+                    while (queue.length > 0) {
+                      const { id, gen } = queue.shift()!;
+                      if (id === nodeId) return gen;
+                      if (visited.has(id)) continue;
+                      visited.add(id);
+                      // children (source→target = parent→child)
+                      edges.filter(e => e.source === id && e.type !== 'spouse').forEach(e => queue.push({ id: e.target, gen: gen + 1 }));
+                      // parents (target→source)
+                      edges.filter(e => e.target === id && e.type !== 'spouse').forEach(e => queue.push({ id: e.source, gen: gen - 1 }));
+                    }
+                    return 0;
                   };
-                  const badge = relationLabel[node.relation] || node.relation;
+
+                  const getRelationLabel = (): { label: string; color: string } => {
+                    if (node.id === 'root') return { label: 'Я', color: 'bg-[#4caf50]' };
+
+                    const gen = getGeneration(node.id);
+
+                    // Проверяем — это супруг кого-то
+                    const isSpouseOf = edges.some(e => e.type === 'spouse' && (e.source === node.id || e.target === node.id));
+
+                    if (isSpouseOf) {
+                      const spouseEdge = edges.find(e => e.type === 'spouse' && (e.source === node.id || e.target === node.id));
+                      const partnerId = spouseEdge ? (spouseEdge.source === node.id ? spouseEdge.target : spouseEdge.source) : null;
+                      const partnerGen = partnerId ? getGeneration(partnerId) : gen;
+                      if (partnerGen === 0) return { label: isMale ? 'Муж' : 'Жена', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                      if (partnerGen === -1) return { label: isMale ? 'Муж детей' : 'Жена детей', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                      if (partnerGen <= -2) return { label: isMale ? 'Дед (жена)' : 'Бабушка', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    }
+
+                    // По поколению
+                    if (gen === -1) return { label: isMale ? 'Сын' : 'Дочь', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    if (gen === -2) return { label: isMale ? 'Внук' : 'Внучка', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    if (gen === 1) return { label: isMale ? 'Отец' : 'Мать', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    if (gen === 2) return { label: isMale ? 'Дедушка' : 'Бабушка', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    if (gen === 3) return { label: isMale ? 'Прадедушка' : 'Прабабушка', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    if (gen >= 4) {
+                      const pra = 'Пра'.repeat(gen - 2);
+                      return { label: isMale ? `${pra}дедушка` : `${pra}бабушка`, color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    }
+                    if (gen <= -3) {
+                      const pra = 'Пра'.repeat(Math.abs(gen) - 2);
+                      return { label: isMale ? `${pra}внук` : `${pra}внучка`, color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                    }
+
+                    // Братья/сёстры (gen === 0, не root)
+                    return { label: isMale ? 'Брат' : 'Сестра', color: isMale ? 'bg-[#5b9bd5]' : 'bg-[#e91e63]' };
+                  };
+
+                  const { label: badge, color: badgeBg } = getRelationLabel();
 
                   const lastName = node.lastName || '';
                   const firstName = [node.firstName, node.middleName].filter(Boolean).join(' ');
