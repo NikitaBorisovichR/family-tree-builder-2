@@ -21,7 +21,8 @@ const INITIAL_NODES: FamilyNode[] = [
     isAlive: true,
     relation: 'self',
     bio: '',
-    historyContext: ''
+    historyContext: '',
+    createdAt: Date.now()
   }
 ];
 
@@ -304,7 +305,8 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
       relation: type,
       bio: '',
       historyContext: '',
-      isAlive: true
+      isAlive: true,
+      createdAt: Date.now()
     };
 
     setNodes((prev) => [...prev, newNode]);

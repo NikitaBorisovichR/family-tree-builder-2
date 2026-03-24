@@ -262,13 +262,13 @@ export function getRecentActivity(nodes: FamilyNode[]): RecentActivity[] {
   const activities: RecentActivity[] = [];
   
   const sortedNodes = [...nodes].sort((a, b) => {
-    const aTime = (a as unknown as { createdAt?: number }).createdAt || 0;
-    const bTime = (b as unknown as { createdAt?: number }).createdAt || 0;
+    const aTime = a.createdAt || 0;
+    const bTime = b.createdAt || 0;
     return bTime - aTime;
   }).slice(0, 4);
   
   sortedNodes.forEach((node) => {
-    const createdAt = (node as unknown as { createdAt?: number }).createdAt || 0;
+    const createdAt = node.createdAt || 0;
     const timeAgo = formatTimeAgo(createdAt);
     
     if (node.bio && node.bio.length > 50) {

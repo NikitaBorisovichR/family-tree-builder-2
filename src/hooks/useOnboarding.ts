@@ -79,7 +79,8 @@ export function useOnboarding(
           isAlive: true,
           relation: 'parent',
           bio: '',
-          historyContext: ''
+          historyContext: '',
+          createdAt: Date.now()
         });
         newEdges.push({ id: 'e1', source: fatherId, target: 'root' });
       }
@@ -103,7 +104,8 @@ export function useOnboarding(
           isAlive: true,
           relation: 'parent',
           bio: '',
-          historyContext: ''
+          historyContext: '',
+          createdAt: Date.now()
         });
         newEdges.push({ id: 'e2', source: motherId, target: 'root' });
       }

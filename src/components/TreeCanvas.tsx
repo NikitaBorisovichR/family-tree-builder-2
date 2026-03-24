@@ -19,6 +19,7 @@ export interface FamilyNode {
   relation: string;
   bio: string;
   historyContext: string;
+  createdAt?: number;
 }
 
 export interface Edge {
