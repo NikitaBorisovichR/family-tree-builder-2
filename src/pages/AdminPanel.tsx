@@ -46,6 +46,11 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatDateTime(iso: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function UserRow({ user, onViewTree }: { user: User; onViewTree: (treeId: number) => void }) {
   const [open, setOpen] = useState(false);
   return (
@@ -84,8 +89,8 @@ function UserRow({ user, onViewTree }: { user: User; onViewTree: (treeId: number
       {open && (
         <div className="px-4 pb-4 pt-2 bg-muted/20 border-t border-border">
           <div className="flex flex-wrap gap-4 mb-3 text-xs text-muted-foreground">
-            <span>Зарегистрирован: <b>{formatDate(user.created_at)}</b></span>
-            <span>Последняя активность: <b>{formatDate(user.last_activity)}</b></span>
+            <span>Зарегистрирован: <b>{formatDateTime(user.created_at)}</b></span>
+            <span>Последняя активность: <b>{formatDateTime(user.last_activity)}</b></span>
             <span>Email подтверждён: <b>{user.email_verified ? 'Да' : 'Нет'}</b></span>
           </div>
 

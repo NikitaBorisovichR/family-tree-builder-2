@@ -45,8 +45,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }
 
     if view == 'users':
-        # auth_users — основная таблица пользователей
-        # family_trees привязаны к таблице users (старая), JOIN через email
         cur.execute(f"""
             SELECT
                 au.id,
@@ -56,8 +54,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 au.email_verified,
                 COUNT(DISTINCT ft.id) AS trees_count,
                 COUNT(DISTINCT p.id) AS persons_count,
-                MAX(ft.updated_at) AS last_activity
+                MAX(s.created_at) AS last_activity
             FROM {schema}.auth_users au
+            LEFT JOIN {schema}.auth_sessions s ON s.user_id = au.id
             LEFT JOIN {schema}.family_trees ft
                 ON ft.auth_user_id = au.id
                 OR ft.user_id IN (SELECT id FROM {schema}.users WHERE email = au.email)
