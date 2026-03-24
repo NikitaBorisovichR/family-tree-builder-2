@@ -67,7 +67,6 @@ export default function TreePage() {
 
   const {
     transform,
-    lastMousePos,
     setTransform,
     handleWheel,
     handleMouseDown,

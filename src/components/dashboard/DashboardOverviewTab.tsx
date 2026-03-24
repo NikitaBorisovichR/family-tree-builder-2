@@ -133,7 +133,7 @@ export default function DashboardOverviewTab({ stats, recentActivity, nodes = []
             {recentActivity.map((activity, index) => (
               <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon name={activity.icon as any} size={18} className="text-primary" />
+                  <Icon name={activity.icon} size={18} className="text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-foreground">{activity.action}</div>
@@ -155,7 +155,7 @@ export default function DashboardOverviewTab({ stats, recentActivity, nodes = []
               {recommendations.map((rec, index) => (
                 <div key={index} className="p-4 bg-white rounded-lg border border-primary/20 hover:border-primary/40 transition-all cursor-pointer">
                   <div className="flex items-start gap-3">
-                    <Icon name={rec.icon as any} size={20} className="text-primary mt-0.5" />
+                    <Icon name={rec.icon} size={20} className="text-primary mt-0.5" />
                     <div>
                       <div className="font-semibold text-foreground mb-1">{rec.title}</div>
                       <div className="text-sm text-muted-foreground">{rec.description}</div>

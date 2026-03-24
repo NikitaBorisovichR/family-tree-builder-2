@@ -54,7 +54,8 @@ export function useOnboarding(
         ...nodes[0],
         firstName: formData.firstName,
         lastName: formData.lastName,
-        gender: formData.gender as 'male' | 'female'
+        gender: formData.gender as 'male' | 'female',
+        createdAt: nodes[0].createdAt ?? Date.now()
       };
 
       const newNodes = [updatedRoot];

@@ -30,7 +30,6 @@ export function useCanvasInteraction() {
 
   return {
     transform,
-    lastMousePos,
     setTransform,
     handleWheel,
     handleMouseDown,
