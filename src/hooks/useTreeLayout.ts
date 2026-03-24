@@ -3,10 +3,10 @@ import { FamilyNode, Edge } from '@/components/TreeCanvas';
 
 const NODE_W = 120;
 const NODE_H = 190;
-const GAP_X = 40;   // горизонтальный зазор между узлами
-const GAP_Y = 80;   // вертикальный зазор между поколениями
-const COL_W = NODE_W + GAP_X; // шаг колонки = 160
-const ROW_H = NODE_H + GAP_Y; // шаг строки = 270
+const GAP_X = 40;
+const GAP_Y = 80;
+const COL_W = NODE_W + GAP_X; // 160
+const ROW_H = NODE_H + GAP_Y; // 270
 
 export interface LayoutNode {
   id: string;
@@ -18,20 +18,24 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
   return useMemo(() => {
     if (!nodes.length) return [];
 
-    // 1. Строим граф родства (без spouse)
-    const parentOf = new Map<string, string[]>(); // child → [parents]
-    const childOf = new Map<string, string[]>();   // parent → [children]
+    const nodeIds = new Set(nodes.map(n => n.id));
 
-    edges.forEach(e => {
-      if (e.type === 'spouse' || e.type === 'sibling') return;
-      // source = родитель, target = ребёнок
-      if (!childOf.has(e.source)) childOf.set(e.source, []);
-      childOf.get(e.source)!.push(e.target);
-      if (!parentOf.has(e.target)) parentOf.set(e.target, []);
-      parentOf.get(e.target)!.push(e.source);
+    // Только parent-child рёбра (без spouse, без sibling)
+    const parentEdges = edges.filter(e => !e.type && nodeIds.has(e.source) && nodeIds.has(e.target));
+    const spouseEdges = edges.filter(e => e.type === 'spouse' && nodeIds.has(e.source) && nodeIds.has(e.target));
+
+    // Строим: parent → children, child → parents
+    const childrenOf = new Map<string, string[]>();
+    const parentsOf  = new Map<string, string[]>();
+    nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
+
+    parentEdges.forEach(e => {
+      childrenOf.get(e.source)!.push(e.target);
+      parentsOf.get(e.target)!.push(e.source);
     });
 
-    // 2. BFS от root для определения поколения каждого узла
+    // BFS от root — определяем поколение каждого узла
+    // gen > 0 = предки, gen < 0 = потомки
     const generation = new Map<string, number>();
     const queue: Array<{ id: string; gen: number }> = [{ id: 'root', gen: 0 }];
     const visited = new Set<string>();
@@ -42,31 +46,47 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
       visited.add(id);
       generation.set(id, gen);
 
-      // родители (выше)
-      (parentOf.get(id) || []).forEach(pid => {
+      // идём к родителям (gen+1)
+      (parentsOf.get(id) || []).forEach(pid => {
         if (!visited.has(pid)) queue.push({ id: pid, gen: gen + 1 });
       });
-      // дети (ниже)
-      (childOf.get(id) || []).forEach(cid => {
+      // идём к детям (gen-1)
+      (childrenOf.get(id) || []).forEach(cid => {
         if (!visited.has(cid)) queue.push({ id: cid, gen: gen - 1 });
       });
     }
 
-    // Узлы не найденные BFS — ставим в поколение 0
-    nodes.forEach(n => {
-      if (!generation.has(n.id)) generation.set(n.id, 0);
-    });
-
-    // 3. Для супругов — ставим в то же поколение что и партнёр
-    edges.forEach(e => {
-      if (e.type !== 'spouse') return;
+    // Sibling-edges без общих родителей — то же поколение что у source
+    edges.filter(e => e.type === 'sibling' && nodeIds.has(e.source) && nodeIds.has(e.target)).forEach(e => {
       const gS = generation.get(e.source);
       const gT = generation.get(e.target);
       if (gS !== undefined && gT === undefined) generation.set(e.target, gS);
       if (gT !== undefined && gS === undefined) generation.set(e.source, gT);
     });
 
-    // 4. Группируем узлы по поколениям
+    // Оставшиеся без поколения — ставим 0
+    nodes.forEach(n => {
+      if (!generation.has(n.id)) generation.set(n.id, 0);
+    });
+
+    // Супруги — то же поколение что и партнёр (несколько проходов для цепочек)
+    for (let pass = 0; pass < 3; pass++) {
+      spouseEdges.forEach(e => {
+        const gS = generation.get(e.source);
+        const gT = generation.get(e.target);
+        if (gS !== undefined && gT === undefined) generation.set(e.target, gS);
+        if (gT !== undefined && gS === undefined) generation.set(e.source, gT);
+        if (gS !== undefined && gT !== undefined && gS !== gT) {
+          // Если расходятся — берём поколение того у кого есть parent-edges
+          const sHasParents = (parentsOf.get(e.source) || []).length > 0 || (childrenOf.get(e.source) || []).length > 0;
+          const tHasParents = (parentsOf.get(e.target) || []).length > 0 || (childrenOf.get(e.target) || []).length > 0;
+          if (sHasParents && !tHasParents) generation.set(e.target, gS!);
+          if (tHasParents && !sHasParents) generation.set(e.source, gT!);
+        }
+      });
+    }
+
+    // Группируем по поколениям
     const byGen = new Map<number, string[]>();
     nodes.forEach(n => {
       const g = generation.get(n.id) ?? 0;
@@ -74,16 +94,13 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
       byGen.get(g)!.push(n.id);
     });
 
-    // 5. Сортируем поколения (от самого старшего к самому младшему)
-    const gens = Array.from(byGen.keys()).sort((a, b) => b - a);
-    const maxGen = gens[0] ?? 0;
+    const gens = Array.from(byGen.keys()).sort((a, b) => b - a); // от старших к младшим
+    const maxGen = gens.length ? gens[0] : 0;
 
-    // 6. Для каждого поколения сортируем узлы: супруги рядом, потом по связям с детьми
+    // Сортируем узлы внутри поколения: пары рядом
     const sortedByGen = new Map<number, string[]>();
     gens.forEach(g => {
       const ids = byGen.get(g)!;
-
-      // Группируем супружеские пары
       const paired = new Set<string>();
       const order: string[] = [];
 
@@ -91,48 +108,46 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
         if (paired.has(id)) return;
         order.push(id);
         paired.add(id);
-        // Ищем супруга в том же поколении
-        const spouseEdge = edges.find(e =>
-          e.type === 'spouse' &&
-          ((e.source === id && ids.includes(e.target)) ||
-           (e.target === id && ids.includes(e.source)))
+        const spouseEdge = spouseEdges.find(e =>
+          (e.source === id && ids.includes(e.target) && !paired.has(e.target)) ||
+          (e.target === id && ids.includes(e.source) && !paired.has(e.source))
         );
         if (spouseEdge) {
           const spouseId = spouseEdge.source === id ? spouseEdge.target : spouseEdge.source;
-          if (!paired.has(spouseId)) {
-            order.push(spouseId);
-            paired.add(spouseId);
-          }
+          order.push(spouseId);
+          paired.add(spouseId);
         }
       });
 
       sortedByGen.set(g, order);
     });
 
-    // 7. Присваиваем X координаты
-    // Находим максимальную ширину среди поколений
+    // Вычисляем ширину каждого поколения и общую ширину
     const genWidths = new Map<number, number>();
     gens.forEach(g => {
-      genWidths.set(g, (sortedByGen.get(g)!.length) * COL_W - GAP_X);
+      genWidths.set(g, sortedByGen.get(g)!.length * COL_W - GAP_X);
     });
     const maxWidth = Math.max(...Array.from(genWidths.values()), COL_W);
     const centerX = maxWidth / 2;
 
+    // Назначаем координаты
     const layout = new Map<string, LayoutNode>();
-
     gens.forEach(g => {
       const ids = sortedByGen.get(g)!;
-      const rowY = (maxGen - g) * ROW_H;
+      const rowY = (maxGen - g) * ROW_H; // самое старшее поколение сверху (y=0)
       const rowW = ids.length * COL_W - GAP_X;
       const startX = centerX - rowW / 2;
 
       ids.forEach((id, i) => {
-        layout.set(id, {
-          id,
-          x: startX + i * COL_W,
-          y: rowY
-        });
+        layout.set(id, { id, x: startX + i * COL_W, y: rowY });
       });
+    });
+
+    // Узлы не попавшие в layout (не должно быть, но на всякий)
+    nodes.forEach((n, i) => {
+      if (!layout.has(n.id)) {
+        layout.set(n.id, { id: n.id, x: i * COL_W, y: 0 });
+      }
     });
 
     return Array.from(layout.values());
