@@ -122,7 +122,6 @@ export default function TreeCanvas({
           </div>
 
           <div
-            ref={containerRef}
             className="flex-1 relative cursor-default overflow-hidden"
             onWheel={onWheel}
             onMouseDown={(e) => {
