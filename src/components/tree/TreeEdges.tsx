@@ -79,15 +79,18 @@ export default function TreeEdges({ edges, getPos }: TreeEdgesProps) {
       parentLineX = parentPositions[0].x + CX;
       parentLineY = parentPositions[0].y + AV_BOT;
     } else {
+      // Два родителя — линия выходит из середины между ними на уровне центра аватара
       const sorted = [...parentPositions].sort((a, b) => a.x - b.x);
+      // Если между родителями есть другие узлы, опускаем точку выхода ниже аватара
       parentLineX = (sorted[0].x + NW + sorted[1].x) / 2;
-      parentLineY = sorted[0].y + AV_CY;
+      parentLineY = sorted[0].y + AV_BOT;
     }
 
     const childTops = childPositions.map(c => ({ x: c.x + CX, y: c.y }));
     const childMinX = Math.min(...childTops.map(c => c.x));
     const childMaxX = Math.max(...childTops.map(c => c.x));
-    const midY = parentLineY + (childTops[0].y - parentLineY) / 2;
+    const childTopY = Math.min(...childTops.map(c => c.y));
+    const midY = parentLineY + (childTopY - parentLineY) / 2;
 
     const groupKey = parentKey + childIds.join(',');
     if (rendered.has(groupKey)) return;
