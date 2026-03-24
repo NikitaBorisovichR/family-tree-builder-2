@@ -50,12 +50,13 @@ export function useOnboarding(
 
   const handleOnboardingNext = () => {
     if (onboardingStep === 3) {
+      const rootNode = nodes[0] ?? INITIAL_NODES[0];
       const updatedRoot: FamilyNode = {
-        ...nodes[0],
+        ...rootNode,
         firstName: formData.firstName,
         lastName: formData.lastName,
         gender: formData.gender as 'male' | 'female',
-        createdAt: nodes[0].createdAt ?? Date.now()
+        createdAt: rootNode.createdAt ?? Date.now()
       };
 
       const newNodes = [updatedRoot];
