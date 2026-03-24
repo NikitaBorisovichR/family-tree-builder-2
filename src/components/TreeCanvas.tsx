@@ -150,16 +150,18 @@ export default function TreeCanvas({
                     const s = nodes.find((n) => n.id === edge.source);
                     const t = nodes.find((n) => n.id === edge.target);
                     if (!s || !t) return null;
-                    // NODE_W=80, NODE_H=100, avatar center ~40px from top
-                    const NW = 80;
+                    // NODE_W=130, середина карточки ~55px сверху (аватар), низ ~130px
+                    const NW = 130;
+                    const NODE_MID_Y = 55;
+                    const NODE_BOTTOM = 130;
                     const isSpouse = edge.type === 'spouse';
-                    const isHorizontal = isSpouse || Math.abs(s.y - t.y) < 60;
+                    const isHorizontal = isSpouse || Math.abs(s.y - t.y) < 80;
 
                     if (isHorizontal) {
                       const leftNode = s.x < t.x ? s : t;
                       const rightNode = s.x < t.x ? t : s;
-                      const sy = leftNode.y + 40;
-                      const ey = rightNode.y + 40;
+                      const sy = leftNode.y + NODE_MID_Y;
+                      const ey = rightNode.y + NODE_MID_Y;
                       const sx = leftNode.x + NW;
                       const ex = rightNode.x;
                       const mx = (sx + ex) / 2;
@@ -171,7 +173,7 @@ export default function TreeCanvas({
                             stroke={isSpouse ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
                             strokeWidth={isSpouse ? 2 : 1.5}
                             strokeDasharray={isSpouse ? '6,3' : undefined}
-                            opacity="0.7"
+                            opacity="0.6"
                           />
                           {isSpouse && (
                             <circle cx={mx} cy={(sy + ey) / 2} r="3" fill="hsl(var(--primary))" opacity="0.5" />
@@ -179,9 +181,9 @@ export default function TreeCanvas({
                         </g>
                       );
                     } else {
-                      // parent → child vertical
+                      // parent → child вертикаль
                       const sx = s.x + NW / 2;
-                      const sy = s.y + 98;
+                      const sy = s.y + NODE_BOTTOM;
                       const ex = t.x + NW / 2;
                       const ey = t.y;
                       const my = (sy + ey) / 2;
@@ -192,7 +194,7 @@ export default function TreeCanvas({
                           fill="none"
                           stroke="hsl(var(--muted-foreground))"
                           strokeWidth="1.5"
-                          opacity="0.6"
+                          opacity="0.5"
                         />
                       );
                     }
@@ -201,14 +203,16 @@ export default function TreeCanvas({
                 {nodes.map((node) => {
                   const isMale = node.gender === 'male';
                   const avatarBg = isMale ? 'bg-blue-100' : 'bg-pink-100';
-                  const avatarBorder = isMale ? 'border-blue-400' : 'border-pink-400';
                   const avatarIcon = isMale ? 'text-blue-500' : 'text-pink-500';
+                  const accentColor = isMale ? 'bg-blue-400' : 'bg-pink-400';
                   const selected = selectedId === node.id;
                   const menuOpen = activeMenu === node.id;
-                  const hasName = node.firstName || node.lastName;
-                  const shortName = node.firstName
-                    ? node.firstName.split(' ')[0]
-                    : node.lastName || '?';
+                  const fullName = [node.lastName, node.firstName, node.middleName].filter(Boolean).join(' ');
+                  const birthYear = node.birthDate ? node.birthDate.replace(/.*(\d{4}).*/, '$1') || node.birthDate : null;
+                  const deathYear = node.deathDate ? node.deathDate.replace(/.*(\d{4}).*/, '$1') || node.deathDate : null;
+                  const years = birthYear
+                    ? node.isAlive ? `р. ${birthYear}` : `${birthYear} – ${deathYear || '...'}`
+                    : null;
 
                   return (
                     <div
@@ -217,7 +221,7 @@ export default function TreeCanvas({
                       style={{
                         left: node.x,
                         top: node.y,
-                        width: 80,
+                        width: 130,
                         zIndex: selected ? 50 : menuOpen ? 60 : 10,
                         cursor: 'grab'
                       }}
@@ -232,36 +236,46 @@ export default function TreeCanvas({
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* Карточка */}
-                      <div className={`flex flex-col items-center select-none`}>
-                        {/* Аватар */}
-                        <div
-                          className={`w-14 h-14 rounded-full border-2 ${avatarBorder} ${avatarBg} flex items-center justify-center ${avatarIcon} shadow-md transition-all ${
-                            selected ? 'ring-4 ring-primary ring-offset-2 shadow-xl scale-110' : 'hover:scale-105'
-                          }`}
-                        >
-                          <Icon name={isMale ? 'User' : 'User'} size={26} />
-                        </div>
-
-                        {/* Имя и даты */}
-                        <div className="mt-1.5 text-center w-full">
-                          <p className="text-[11px] font-semibold text-foreground leading-tight truncate px-0.5">
-                            {hasName ? shortName : '—'}
-                          </p>
-                          {node.lastName && node.firstName && (
-                            <p className="text-[9px] text-muted-foreground truncate px-0.5 leading-tight">
-                              {node.lastName}
+                      <div
+                        className={`select-none bg-white rounded-2xl shadow-md overflow-hidden transition-all ${
+                          selected
+                            ? 'ring-2 ring-primary shadow-xl scale-105'
+                            : 'hover:shadow-lg hover:scale-[1.02]'
+                        }`}
+                      >
+                        {/* Цветная шапка с аватаром */}
+                        <div className={`${accentColor} h-1.5 w-full`} />
+                        <div className="px-3 pt-3 pb-2.5 flex flex-col items-center gap-2">
+                          {/* Аватар */}
+                          <div className={`w-12 h-12 rounded-full ${avatarBg} ${avatarIcon} flex items-center justify-center shrink-0 ring-2 ring-white shadow`}>
+                            <Icon name="User" size={24} />
+                          </div>
+                          {/* Имя */}
+                          <div className="text-center w-full">
+                            <p className="text-[11px] font-bold text-foreground leading-tight line-clamp-2">
+                              {fullName || <span className="text-muted-foreground italic">Не заполнено</span>}
                             </p>
+                            {node.maidenName && (
+                              <p className="text-[9px] text-muted-foreground mt-0.5">({node.maidenName})</p>
+                            )}
+                          </div>
+                          {/* Даты и профессия */}
+                          {(years || node.occupation) && (
+                            <div className="w-full border-t border-border/50 pt-1.5 flex flex-col gap-0.5">
+                              {years && (
+                                <p className="text-[10px] text-muted-foreground text-center">{years}</p>
+                              )}
+                              {node.occupation && (
+                                <p className="text-[9px] text-muted-foreground/80 text-center truncate">{node.occupation}</p>
+                              )}
+                            </div>
                           )}
-                          <p className="text-[9px] text-muted-foreground/70 mt-0.5">
-                            {node.birthDate ? node.birthDate.slice(-4) || node.birthDate : '????'}
-                            {!node.isAlive && node.deathDate ? `–${node.deathDate.slice(-4) || node.deathDate}` : ''}
-                          </p>
                         </div>
                       </div>
 
                       {/* Кнопка + */}
                       <div
-                        className="absolute -bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20"
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
