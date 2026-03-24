@@ -54,6 +54,11 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
       (childrenOf.get(id) || []).forEach(cid => {
         if (!visited.has(cid)) queue.push({ id: cid, gen: gen - 1 });
       });
+      // идём к супругам (то же поколение) — это позволяет добраться до родственников супруга
+      spouseEdges.filter(e => e.source === id || e.target === id).forEach(e => {
+        const spId = e.source === id ? e.target : e.source;
+        if (!visited.has(spId)) queue.push({ id: spId, gen });
+      });
     }
 
     // Sibling-edges без общих родителей — то же поколение что у source
@@ -68,23 +73,6 @@ export function useTreeLayout(nodes: FamilyNode[], edges: Edge[]): LayoutNode[] 
     nodes.forEach(n => {
       if (!generation.has(n.id)) generation.set(n.id, 0);
     });
-
-    // Супруги — то же поколение что и партнёр (несколько проходов для цепочек)
-    for (let pass = 0; pass < 3; pass++) {
-      spouseEdges.forEach(e => {
-        const gS = generation.get(e.source);
-        const gT = generation.get(e.target);
-        if (gS !== undefined && gT === undefined) generation.set(e.target, gS);
-        if (gT !== undefined && gS === undefined) generation.set(e.source, gT);
-        if (gS !== undefined && gT !== undefined && gS !== gT) {
-          // Если расходятся — берём поколение того у кого есть parent-edges
-          const sHasParents = (parentsOf.get(e.source) || []).length > 0 || (childrenOf.get(e.source) || []).length > 0;
-          const tHasParents = (parentsOf.get(e.target) || []).length > 0 || (childrenOf.get(e.target) || []).length > 0;
-          if (sHasParents && !tHasParents) generation.set(e.target, gS!);
-          if (tHasParents && !sHasParents) generation.set(e.source, gT!);
-        }
-      });
-    }
 
     // Группируем по поколениям
     const byGen = new Map<number, string[]>();

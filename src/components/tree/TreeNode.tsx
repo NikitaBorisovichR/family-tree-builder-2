@@ -22,10 +22,79 @@ function getGeneration(nodeId: string, edges: Edge[]): number {
     if (id === nodeId) return gen;
     if (visited.has(id)) continue;
     visited.add(id);
-    edges.filter(e => e.target === id && e.type !== 'spouse')
-      .forEach(e => queue.push({ id: e.source, gen: gen + 1 }));
-    edges.filter(e => e.source === id && e.type !== 'spouse')
-      .forEach(e => queue.push({ id: e.target, gen: gen - 1 }));
+    // родители (source→target = родитель→ребёнок): идём вверх +1
+    edges.filter(e => e.target === id && !e.type)
+      .forEach(e => { if (!visited.has(e.source)) queue.push({ id: e.source, gen: gen + 1 }); });
+    // дети: идём вниз -1
+    edges.filter(e => e.source === id && !e.type)
+      .forEach(e => { if (!visited.has(e.target)) queue.push({ id: e.target, gen: gen - 1 }); });
+    // супруги: то же поколение (позволяет добраться до их родственников)
+    edges.filter(e => e.type === 'spouse' && (e.source === id || e.target === id))
+      .forEach(e => {
+        const spId = e.source === id ? e.target : e.source;
+        if (!visited.has(spId)) queue.push({ id: spId, gen });
+      });
+  }
+  return 0;
+}
+
+// Ищем кратчайший путь от root до nodeId.
+// Возвращаем массив шагов: { id, via: 'parent'|'child'|'spouse' }
+// parent = идём к родителю, child = идём к ребёнку, spouse = идём к супругу
+type Step = { id: string; via: 'parent' | 'child' | 'spouse' };
+
+function findPath(nodeId: string, edges: Edge[]): Step[] | null {
+  if (nodeId === 'root') return [];
+  const visited = new Set<string>();
+  const queue: Array<{ id: string; path: Step[] }> = [{ id: 'root', path: [] }];
+  while (queue.length > 0) {
+    const { id, path } = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    // родители
+    edges.filter(e => e.target === id && !e.type).forEach(e => {
+      const next = e.source;
+      const newPath = [...path, { id: next, via: 'parent' as const }];
+      if (next === nodeId) return queue.unshift({ id: next, path: newPath }); // найден
+      if (!visited.has(next)) queue.push({ id: next, path: newPath });
+    });
+    // дети
+    edges.filter(e => e.source === id && !e.type).forEach(e => {
+      const next = e.target;
+      const newPath = [...path, { id: next, via: 'child' as const }];
+      if (next === nodeId) return queue.unshift({ id: next, path: newPath });
+      if (!visited.has(next)) queue.push({ id: next, path: newPath });
+    });
+    // супруги
+    edges.filter(e => e.type === 'spouse' && (e.source === id || e.target === id)).forEach(e => {
+      const next = e.source === id ? e.target : e.source;
+      const newPath = [...path, { id: next, via: 'spouse' as const }];
+      if (next === nodeId) return queue.unshift({ id: next, path: newPath });
+      if (!visited.has(next)) queue.push({ id: next, path: newPath });
+    });
+    // проверяем голову очереди после добавлений
+    if (queue[0]?.id === nodeId) return queue[0].path;
+  }
+  return null;
+}
+
+function getGeneration(nodeId: string, edges: Edge[]): number {
+  const visited = new Set<string>();
+  const queue: Array<{ id: string; gen: number }> = [{ id: 'root', gen: 0 }];
+  while (queue.length > 0) {
+    const { id, gen } = queue.shift()!;
+    if (id === nodeId) return gen;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    edges.filter(e => e.target === id && !e.type)
+      .forEach(e => { if (!visited.has(e.source)) queue.push({ id: e.source, gen: gen + 1 }); });
+    edges.filter(e => e.source === id && !e.type)
+      .forEach(e => { if (!visited.has(e.target)) queue.push({ id: e.target, gen: gen - 1 }); });
+    edges.filter(e => e.type === 'spouse' && (e.source === id || e.target === id))
+      .forEach(e => {
+        const spId = e.source === id ? e.target : e.source;
+        if (!visited.has(spId)) queue.push({ id: spId, gen });
+      });
   }
   return 0;
 }
@@ -39,37 +108,80 @@ function getRelationLabel(node: FamilyNode, edges: Edge[]): { label: string; col
 
   if (node.id === 'root') return { label: 'Я', color: green };
 
-  const spouseEdge = edges.find(e => e.type === 'spouse' && (e.source === node.id || e.target === node.id));
-  if (spouseEdge) {
-    const partnerId = spouseEdge.source === node.id ? spouseEdge.target : spouseEdge.source;
-    const partnerGen = getGeneration(partnerId, edges);
-    if (partnerGen === 0) return { label: isMale ? 'Муж' : 'Жена', color: c };
-    if (partnerGen === 1) return { label: isMale ? 'Муж мамы' : 'Жена папы', color: c };
-    if (partnerGen === 2) return { label: isMale ? 'Дед' : 'Бабушка', color: c };
-    if (partnerGen >= 3) {
-      const pra = 'Пра'.repeat(partnerGen - 2);
-      return { label: isMale ? `${pra}дед` : `${pra}бабушка`, color: c };
+  const path = findPath(node.id, edges);
+  if (!path || path.length === 0) return { label: isMale ? 'Родственник' : 'Родственница', color: c };
+
+  const vias = path.map(s => s.via);
+
+  // Прямые по крови (только parent/child шаги)
+  const isBloodOnly = vias.every(v => v === 'parent' || v === 'child');
+  const parentCount = vias.filter(v => v === 'parent').length;
+  const childCount  = vias.filter(v => v === 'child').length;
+
+  if (isBloodOnly) {
+    // Только предки (все шаги — parent)
+    if (childCount === 0) {
+      if (parentCount === 1) return { label: isMale ? 'Отец' : 'Мать', color: c };
+      if (parentCount === 2) return { label: isMale ? 'Дедушка' : 'Бабушка', color: c };
+      if (parentCount === 3) return { label: isMale ? 'Прадедушка' : 'Прабабушка', color: c };
+      const pra = 'Пра'.repeat(parentCount - 2);
+      return { label: isMale ? `${pra}дедушка` : `${pra}бабушка`, color: c };
     }
-    if (partnerGen === -1) return { label: isMale ? 'Муж дочери' : 'Жена сына', color: c };
-    return { label: isMale ? 'Муж' : 'Жена', color: c };
+    // Только потомки (все шаги — child)
+    if (parentCount === 0) {
+      if (childCount === 1) return { label: isMale ? 'Сын' : 'Дочь', color: c };
+      if (childCount === 2) return { label: isMale ? 'Внук' : 'Внучка', color: c };
+      if (childCount === 3) return { label: isMale ? 'Правнук' : 'Правнучка', color: c };
+      const pra = 'Пра'.repeat(childCount - 2);
+      return { label: isMale ? `${pra}внук` : `${pra}внучка`, color: c };
+    }
+    // Смешанные (боковая линия — братья, племянники и т.д.)
+    if (parentCount === 1 && childCount === 1) return { label: isMale ? 'Брат' : 'Сестра', color: c };
+    if (parentCount === 1 && childCount === 2) return { label: isMale ? 'Племянник' : 'Племянница', color: c };
+    if (parentCount === 2 && childCount === 1) return { label: isMale ? 'Дядя' : 'Тётя', color: c };
+    if (parentCount === 2 && childCount === 2) return { label: isMale ? 'Двоюродный брат' : 'Двоюродная сестра', color: c };
+    return { label: isMale ? 'Родственник' : 'Родственница', color: c };
   }
 
-  const gen = getGeneration(node.id, edges);
-  if (gen === 1)  return { label: isMale ? 'Отец' : 'Мать', color: c };
-  if (gen === 2)  return { label: isMale ? 'Дедушка' : 'Бабушка', color: c };
-  if (gen === 3)  return { label: isMale ? 'Прадедушка' : 'Прабабушка', color: c };
-  if (gen >= 4) {
-    const pra = 'Пра'.repeat(gen - 2);
-    return { label: isMale ? `${pra}дедушка` : `${pra}бабушка`, color: c };
+  // Путь через супруга
+  const firstSpouseIdx = vias.indexOf('spouse');
+  const beforeSpouse = vias.slice(0, firstSpouseIdx);
+  const afterSpouse  = vias.slice(firstSpouseIdx + 1);
+
+  const beforeParents  = beforeSpouse.filter(v => v === 'parent').length;
+  const beforeChildren = beforeSpouse.filter(v => v === 'child').length;
+  const afterParents   = afterSpouse.filter(v => v === 'parent').length;
+  const afterChildren  = afterSpouse.filter(v => v === 'child').length;
+
+  // root → [дети] → spouse → ... (зять/невестка/супруг ребёнка)
+  if (beforeChildren > 0 && beforeParents === 0 && afterSpouse.length === 0) {
+    if (beforeChildren === 1) return { label: isMale ? 'Зять' : 'Невестка', color: c };
+    return { label: isMale ? 'Зять' : 'Невестка', color: c };
   }
-  if (gen === -1) return { label: isMale ? 'Сын' : 'Дочь', color: c };
-  if (gen === -2) return { label: isMale ? 'Внук' : 'Внучка', color: c };
-  if (gen === -3) return { label: isMale ? 'Правнук' : 'Правнучка', color: c };
-  if (gen <= -4) {
-    const pra = 'Пра'.repeat(Math.abs(gen) - 2);
-    return { label: isMale ? `${pra}внук` : `${pra}внучка`, color: c };
+
+  // root → spouse → ... (супруг/а)
+  if (beforeSpouse.length === 0) {
+    if (afterSpouse.length === 0) return { label: isMale ? 'Муж' : 'Жена', color: c };
+    // root → spouse → parent(s) → ... (тесть/тёща / свёкор/свекровь)
+    if (afterChildren === 0) {
+      if (afterParents === 1) return { label: isMale ? 'Тесть' : 'Тёща', color: c };
+      if (afterParents === 2) return { label: isMale ? 'Дед супруга' : 'Баб. супруга', color: c };
+      return { label: isMale ? 'Родств. супруга' : 'Родств. супруги', color: c };
+    }
+    // root → spouse → child → ... (пасынок/падчерица)
+    if (afterParents === 0 && afterChildren === 1) return { label: isMale ? 'Пасынок' : 'Падчерица', color: c };
+    // root → spouse → sibling-like
+    if (afterParents === 1 && afterChildren === 1) return { label: isMale ? 'Шурин' : 'Свояченица', color: c };
+    return { label: isMale ? 'Родств. супруга' : 'Родств. супруги', color: c };
   }
-  return { label: isMale ? 'Брат' : 'Сестра', color: c };
+
+  // root → parent(s) → spouse → ... (супруг родителя)
+  if (beforeChildren === 0 && beforeParents > 0 && afterSpouse.length === 0) {
+    if (beforeParents === 1) return { label: isMale ? 'Отчим' : 'Мачеха', color: c };
+    return { label: isMale ? 'Супруг предка' : 'Супруга предка', color: c };
+  }
+
+  return { label: isMale ? 'Родственник' : 'Родственница', color: c };
 }
 
 export default function TreeNode({
