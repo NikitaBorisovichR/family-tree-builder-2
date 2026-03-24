@@ -100,6 +100,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             saved_tree_id = result['id']
         
         cursor.execute(
+            "DELETE FROM \"t_p57451291_family_tree_builder_\".relationships WHERE tree_id = %s",
+            (saved_tree_id,)
+        )
+        
+        cursor.execute(
             "DELETE FROM \"t_p57451291_family_tree_builder_\".persons WHERE tree_id = %s",
             (saved_tree_id,)
         )
@@ -119,11 +124,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     node.get('bio'), node.get('historyContext'), node.get('x', 0), node.get('y', 0)
                 )
             )
-        
-        cursor.execute(
-            "DELETE FROM \"t_p57451291_family_tree_builder_\".relationships WHERE tree_id = %s",
-            (saved_tree_id,)
-        )
         
         # Строим маппинг по frontend_node_id — точный, не зависит от порядка
         cursor.execute(
