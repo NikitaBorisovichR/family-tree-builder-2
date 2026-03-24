@@ -1,3 +1,4 @@
+// v2 — декомпозиция
 import React, { useState } from 'react';
 import Icon from '@/components/ui/icon';
 import { LayoutNode } from '@/hooks/useTreeLayout';

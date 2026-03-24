@@ -5,7 +5,7 @@ export function useDemoTreeInteraction(nodes: FamilyNode[], edges: Edge[]) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<'canvas' | 'timeline'>('canvas');
   const [transform, setTransform] = useState({ x: -100, y: 100, k: 0.7 });
-  const lastMousePos = useRef({ x: 0, y: 0 });
+  const _lastMousePos = useRef({ x: 0, y: 0 });
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -18,29 +18,25 @@ export function useDemoTreeInteraction(nodes: FamilyNode[], edges: Edge[]) {
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
+      _lastMousePos.current = { x: e.clientX, y: e.clientY };
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (e.buttons === 1 && !selectedId) {
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
+      const dx = e.clientX - _lastMousePos.current.x;
+      const dy = e.clientY - _lastMousePos.current.y;
       setTransform(prev => ({
         ...prev,
         x: prev.x + dx,
         y: prev.y + dy
       }));
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
+      _lastMousePos.current = { x: e.clientX, y: e.clientY };
     }
   };
 
   const handleMouseUp = () => {
-    // no-op: required by canvas interface
-  };
-
-  const handleNodeDragStart = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+    // no-op
   };
 
   const selectedNode = nodes.find(n => n.id === selectedId) || null;
@@ -56,12 +52,10 @@ export function useDemoTreeInteraction(nodes: FamilyNode[], edges: Edge[]) {
     setMode,
     transform,
     setTransform,
-    lastMousePos,
     handleWheel,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-    handleNodeDragStart,
     selectedNode,
     parents
   };

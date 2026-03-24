@@ -3,6 +3,7 @@ import TreeCanvas from '@/components/TreeCanvas';
 import PersonInspector from '@/components/PersonInspector';
 import DemoPageHeader from '@/components/DemoPageHeader';
 import { useDemoTreeInteraction } from '@/hooks/useDemoTreeInteraction';
+import { useTreeLayout } from '@/hooks/useTreeLayout';
 import { DEMO_NODES, DEMO_EDGES } from '@/data/romanovDynastyData';
 
 interface DemoPageProps {
@@ -17,15 +18,15 @@ export default function DemoPage({ onClose }: DemoPageProps) {
     setMode,
     transform,
     setTransform,
-    lastMousePos,
     handleWheel,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-    handleNodeDragStart,
     selectedNode,
     parents
   } = useDemoTreeInteraction(DEMO_NODES, DEMO_EDGES);
+
+  const layoutNodes = useTreeLayout(DEMO_NODES, DEMO_EDGES);
 
   return (
     <div className="h-screen w-full bg-background flex flex-col relative">
@@ -35,6 +36,7 @@ export default function DemoPage({ onClose }: DemoPageProps) {
         <div className="flex-1 relative">
           <TreeCanvas
             nodes={DEMO_NODES}
+            layoutNodes={layoutNodes}
             edges={DEMO_EDGES}
             selectedId={selectedId}
             transform={transform}
@@ -45,10 +47,8 @@ export default function DemoPage({ onClose }: DemoPageProps) {
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onNodeDragStart={handleNodeDragStart}
             onSelectNode={setSelectedId}
             onAddRelative={() => { /* demo mode */ }}
-            lastMousePos={lastMousePos}
           />
         </div>
 
