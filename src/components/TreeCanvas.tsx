@@ -103,10 +103,11 @@ export default function TreeCanvas({
           <div
             className="flex-1 relative cursor-default overflow-hidden"
             onWheel={onWheel}
-            onMouseDown={(e) => { setActiveMenu(null); onMouseDown(e); }}
+            onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseUp}
+            onClick={() => setActiveMenu(null)}
           >
             <div
               style={{

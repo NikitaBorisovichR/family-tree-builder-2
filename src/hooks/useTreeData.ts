@@ -217,82 +217,11 @@ export function useTreeData(currentView: string, overrideTreeId?: string | null)
     }
 
     const newId = Date.now().toString();
-    let newX = sourceNode.x;
-    let newY = sourceNode.y;
+    // x/y не используются для отображения (layout пересчитывает),
+    // но нужны как поля FamilyNode — ставим 0
+    const newX = 0;
+    const newY = 0;
     const newLastName = sourceNode.lastName;
-
-    // NODE_W=120, gap=40 → horizontal step=160; vertical step=200
-    const STEP_H = 160;
-    const STEP_V = 200;
-
-    if (type === 'parent') {
-      if (existingParents.length === 0) {
-        newX = sourceNode.x - STEP_H / 2;
-        newY = sourceNode.y - STEP_V;
-      } else {
-        const firstParent = existingParents[0];
-        newX = firstParent.x + STEP_H;
-        newY = firstParent.y;
-        // Центрируем пару родителей над ребёнком
-        setNodes((prev) => prev.map((n) =>
-          n.id === firstParent.id ? { ...n, x: sourceNode.x - STEP_H / 2 } : n
-        ));
-      }
-    } else if (type === 'child') {
-      const spouseEdges = edges.filter((e) => e.type === 'spouse' && (e.source === sourceId || e.target === sourceId));
-      const spouseIds = spouseEdges.map((e) => e.source === sourceId ? e.target : e.source);
-      
-      const allChildrenEdges = edges.filter((e) => 
-        e.type !== 'spouse' && (e.source === sourceId || spouseIds.includes(e.source))
-      );
-      
-      const childrenOfFamily = allChildrenEdges
-        .map((e) => nodes.find((n) => n.id === e.target))
-        .filter(Boolean) as FamilyNode[];
-
-      if (childrenOfFamily.length > 0) {
-        const rightmostChild = childrenOfFamily.reduce((max, child) => 
-          child.x > max.x ? child : max
-        );
-        newX = rightmostChild.x + STEP_H;
-        newY = rightmostChild.y;
-      } else {
-        newY += STEP_V;
-      }
-    } else if (type === 'sibling') {
-      const siblingsOfSource = edges
-        .filter((e) => {
-          const parentEdges = edges.filter((pe) => pe.target === sourceId && pe.type !== 'spouse');
-          return parentEdges.some((pe) => pe.source === e.source) && e.target !== sourceId;
-        })
-        .map((e) => nodes.find((n) => n.id === e.target))
-        .filter(Boolean) as FamilyNode[];
-
-      const allSiblings = [...siblingsOfSource, sourceNode];
-      const rightmostSibling = allSiblings.reduce((max, sib) => 
-        sib.x > max.x ? sib : max
-      );
-      newX = rightmostSibling.x + STEP_H;
-      newY = sourceNode.y;
-    } else if (type === 'spouse') {
-      const existingSpouses = edges
-        .filter((e) => e.type === 'spouse' && (e.source === sourceId || e.target === sourceId))
-        .map((e) => {
-          const spouseId = e.source === sourceId ? e.target : e.source;
-          return nodes.find((n) => n.id === spouseId);
-        })
-        .filter(Boolean) as FamilyNode[];
-
-      if (existingSpouses.length > 0) {
-        const rightmostSpouse = existingSpouses.reduce((max, spouse) => 
-          spouse.x > max.x ? spouse : max
-        );
-        newX = rightmostSpouse.x + STEP_H;
-      } else {
-        newX += STEP_H;
-      }
-      newY = sourceNode.y;
-    }
 
     let newGender: 'male' | 'female' = gender || sourceNode.gender;
     if (type === 'parent' && !gender) {
