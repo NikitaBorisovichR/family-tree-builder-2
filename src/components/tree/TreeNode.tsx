@@ -91,19 +91,48 @@ export default function TreeNode({
   const dates = [node.birthDate, node.isAlive ? null : (node.deathDate || '...')].filter(Boolean).join('—');
   const place = node.birthPlace || '';
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (menuOpen) {
+      onCloseMenu();
+    } else {
+      onSelect();
+    }
+  };
+
+  const handlePlusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleMenu();
+  };
+
+  const handleMenuItemClick = (e: React.MouseEvent, type: string, gender?: 'male' | 'female') => {
+    e.stopPropagation();
+    onAddRelative(node.id, type, gender);
+    onCloseMenu();
+  };
+
   return (
     <div
-      key={node.id}
-      className="absolute group"
-      style={{ left: pos.x, top: pos.y, width: 120, zIndex: selected ? 50 : menuOpen ? 60 : 10, cursor: 'pointer' }}
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        width: 120,
+        zIndex: selected ? 50 : menuOpen ? 60 : 10,
+      }}
+      onClick={handleCardClick}
     >
-      <div className="flex flex-col items-center select-none">
+      {/* Карточка */}
+      <div
+        className="flex flex-col items-center select-none cursor-pointer"
+        style={{ userSelect: 'none' }}
+      >
         {/* Аватар */}
         <div className="relative">
-          <div className={`w-[90px] h-[90px] rounded-full ${avatarBg} ${avatarIcon} ${avatarRing} flex items-center justify-center shadow-md transition-all ${selected ? 'scale-105' : 'hover:scale-[1.03]'}`}>
+          <div className={`w-[90px] h-[90px] rounded-full ${avatarBg} ${avatarIcon} ${avatarRing} flex items-center justify-center shadow-md transition-all ${selected ? 'scale-105' : ''}`}>
             <Icon name="User" size={46} />
           </div>
+          {/* Бейдж роли */}
           <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${badgeBg} text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow`}>
             {badge}
           </div>
@@ -119,54 +148,69 @@ export default function TreeNode({
         </div>
       </div>
 
-      {/* Кнопка + и меню */}
+      {/* Кнопка + — всегда видима */}
       <div
-        className="mt-1 relative flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
+        style={{ position: 'relative', display: 'flex', justifyContent: 'center', marginTop: 6 }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           title="Добавить родственника"
-          className="bg-foreground text-background rounded-full w-6 h-6 flex items-center justify-center hover:bg-primary shadow-lg hover:scale-110 transition"
-          onClick={(e) => { e.stopPropagation(); onToggleMenu(); }}
+          style={{
+            width: 24, height: 24, borderRadius: '50%',
+            background: '#1a1a1a', color: '#fff',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+            fontSize: 18, lineHeight: 1,
+          }}
+          onClick={handlePlusClick}
         >
           <Icon name="Plus" size={13} />
         </button>
 
+        {/* Выпадающее меню */}
         {menuOpen && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl border border-border overflow-hidden z-30" style={{ minWidth: 130 }}>
-            <div className="grid grid-cols-2 gap-px bg-border">
+          <div
+            style={{
+              position: 'absolute', top: 30, left: '50%', transform: 'translateX(-50%)',
+              background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+              border: '1px solid #e5e7eb', overflow: 'hidden', minWidth: 140, zIndex: 100,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#e5e7eb' }}>
               {node.gender === 'male' ? (
-                <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'spouse', 'female'); onCloseMenu(); }}>
+                <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'spouse', 'female')}>
                   <Icon name="Heart" size={15} className="text-pink-500" />
                   <span className="text-[10px] font-medium">Жена</span>
                 </button>
               ) : (
-                <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'spouse', 'male'); onCloseMenu(); }}>
+                <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'spouse', 'male')}>
                   <Icon name="Heart" size={15} className="text-blue-500" />
                   <span className="text-[10px] font-medium">Муж</span>
                 </button>
               )}
-              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'parent', 'male'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'parent', 'male')}>
                 <Icon name="UserRound" size={15} className="text-blue-500" />
                 <span className="text-[10px] font-medium">Отец</span>
               </button>
-              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'parent', 'female'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'parent', 'female')}>
                 <Icon name="UserRound" size={15} className="text-pink-500" />
                 <span className="text-[10px] font-medium">Мать</span>
               </button>
-              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'sibling', 'male'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'sibling', 'male')}>
                 <Icon name="Users" size={15} className="text-blue-500" />
                 <span className="text-[10px] font-medium">Брат</span>
               </button>
-              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'sibling', 'female'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'sibling', 'female')}>
                 <Icon name="Users" size={15} className="text-pink-500" />
                 <span className="text-[10px] font-medium">Сестра</span>
               </button>
-              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'child', 'male'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-blue-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'child', 'male')}>
                 <Icon name="Baby" size={15} className="text-blue-500" />
                 <span className="text-[10px] font-medium">Сын</span>
               </button>
-              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => { e.stopPropagation(); onAddRelative(node.id, 'child', 'female'); onCloseMenu(); }}>
+              <button className="bg-white hover:bg-pink-50 p-2 flex flex-col items-center gap-1 transition-colors" onClick={(e) => handleMenuItemClick(e, 'child', 'female')}>
                 <Icon name="Baby" size={15} className="text-pink-500" />
                 <span className="text-[10px] font-medium">Дочь</span>
               </button>
