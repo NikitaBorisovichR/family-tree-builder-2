@@ -18,6 +18,7 @@ export default function TreePage() {
 
   const isReadonly = searchParams.get('readonly') === 'true';
   const adminTreeId = searchParams.get('tree_id');
+  const [userInitials, setUserInitials] = React.useState('U');
 
   React.useEffect(() => {
     const userData = localStorage.getItem('user_data');
@@ -27,6 +28,8 @@ export default function TreePage() {
         if (isAdmin(user.email)) {
           setShowAdminButton(true);
         }
+        const name = user.display_name || user.email || '';
+        setUserInitials(name[0]?.toUpperCase() || 'U');
       } catch (_) {
         // ignore parse errors
       }
@@ -165,14 +168,15 @@ export default function TreePage() {
 
           <HelpTooltip />
           
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs cursor-pointer hover:bg-primary/20 transition-colors"
-            title="Открыть профиль"
-          >
-            {nodes[0]?.firstName?.[0] || 'U'}
-            {nodes[0]?.lastName?.[0] || ''}
-          </button>
+          {!isReadonly && (
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs cursor-pointer hover:bg-primary/20 transition-colors"
+              title="Открыть профиль"
+            >
+              {userInitials}
+            </button>
+          )}
 
           <button 
             onClick={handleLogout}

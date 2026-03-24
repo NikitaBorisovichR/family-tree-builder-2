@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import HomePage from '@/components/HomePage';
@@ -13,6 +14,7 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onStart, onGoToDashboard, onGoToTree }: LandingPageProps) {
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = React.useState<'home' | 'pricing' | 'demo'>('home');
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [authMode, setAuthMode] = React.useState<'login' | 'register'>('login');
@@ -84,13 +86,13 @@ export default function LandingPage({ onStart, onGoToDashboard, onGoToTree }: La
             <button onClick={() => setCurrentPage('pricing')} className={`hover:text-primary transition-all ${currentPage === 'pricing' ? 'text-primary font-semibold' : ''}`}>
               Тарифы
             </button>
-            <button onClick={() => window.location.href = '/tutorial'} className="hover:text-primary transition-all">
+            <button onClick={() => navigate('/tutorial')} className="hover:text-primary transition-all">
               Обучение
             </button>
-            <button onClick={() => window.location.href = '/archive'} className="hover:text-primary transition-all">
+            <button onClick={() => navigate('/archive')} className="hover:text-primary transition-all">
               Архивы
             </button>
-            <button onClick={() => window.location.href = '/support'} className="hover:text-primary transition-all">
+            <button onClick={() => navigate('/support')} className="hover:text-primary transition-all">
               Поддержка
             </button>
           </div>

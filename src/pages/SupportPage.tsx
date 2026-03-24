@@ -24,7 +24,7 @@ export default function SupportPage() {
         },
         {
           q: 'Можно ли создать несколько древ?',
-          a: 'Да, вы можете создавать неограниченное количество древ для разных ветвей семьи. Все они будут доступны в разделе "Архивы".'
+          a: 'Да, вы можете создавать неограниченное количество древ для разных ветвей семьи. Переключаться между ними можно в Личном кабинете.'
         }
       ]
     },
@@ -166,7 +166,7 @@ export default function SupportPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Icon name={category.icon as any} size={20} className="text-primary" />
+                    <Icon name={category.icon} size={20} className="text-primary" />
                   </div>
                   <span className="font-semibold text-foreground">{category.title}</span>
                 </div>
@@ -198,7 +198,7 @@ export default function SupportPage() {
               <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                    <Icon name={method.icon as any} size={24} className="text-primary" />
+                    <Icon name={method.icon} size={24} className="text-primary" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-foreground mb-1">{method.title}</h3>

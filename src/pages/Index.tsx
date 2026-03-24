@@ -11,10 +11,6 @@ export default function Index() {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
 
-
-
-
-
   useEffect(() => {
     const sessionToken = localStorage.getItem('session_token');
     const userData = localStorage.getItem('user_data');
@@ -26,14 +22,6 @@ export default function Index() {
     }
   }, [navigate]);
 
-
-
-
-
-
-
-
-
   const {
     onboardingStep,
     formData,
@@ -42,8 +30,6 @@ export default function Index() {
     handleOnboardingSkip,
     handleOnboardingNext
   } = useOnboarding(nodes, setNodes, setEdges, () => navigate('/tree'));
-
-
 
   const handleStart = () => setCurrentView('onboarding');
   const handleGoToDashboard = () => navigate('/dashboard');
